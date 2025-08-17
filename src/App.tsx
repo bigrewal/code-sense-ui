@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import IngestForm from './components/IngestForm';
@@ -51,12 +51,12 @@ const AppRoutes: React.FC = () => {
   }, [user, navigate]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/" element={user ? <Dashboard /> : <Login />} />
-    </Routes>
-  );
+  <Routes>
+    <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+    <Route path="/signup" element={<Signup />} />
+    <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />
+  </Routes>
+);
 };
 
 const App: React.FC = () => (

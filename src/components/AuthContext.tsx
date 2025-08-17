@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState } from 'react';
 import { login as loginApi, signup as signupApi, createCheckout } from '../api';
 import { loadStripe } from '@stripe/stripe-js';
 
+const BYPASS = import.meta.env.VITE_BYPASS_AUTH === 'true';
+
+console.log('BYPASS_AUTH:', BYPASS);
+
 interface User {
   email: string;
 }
@@ -16,7 +20,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(BYPASS ? { email: 'dev@local' } : null);
 
   const login = async (email: string, password: string) => {
     await loginApi(email, password);
