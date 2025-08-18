@@ -24,6 +24,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(BYPASS ? { email: 'dev@local' } : null);
 
   const login = async (email: string, password: string) => {
+    // Allow a hardcoded demo account for local development
+    if (
+      email === 'demo@codesense.com' &&
+      password === 'password123'
+    ) {
+      setUser({ email });
+      return;
+    }
+
     await loginApi(email, password);
     setUser({ email });
   };
