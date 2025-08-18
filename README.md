@@ -26,6 +26,13 @@ VITE_STRIPE_PK=pk_test_your_key
 
 Then open `http://localhost:5173` in your browser.
 
+### Demo login credentials
+
+To explore the app without a backend, log in with:
+
+- **Email:** `demo@codesense.com`
+- **Password:** `password123`
+
 ## Building
 
 ```bash
