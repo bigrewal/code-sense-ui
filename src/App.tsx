@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import IngestForm from './components/IngestForm';
@@ -10,7 +10,7 @@ import { Repo } from './types';
 import { fetchRepos } from './api';
 
 const Dashboard: React.FC = () => {
-  const [repos, setRepos] = useState<Repo[]>([]);
+  const [repos, setRepos] = useState<string[]>([]);
   const [currentRepo, setCurrentRepo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,9 +18,8 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const addRepo = (name: string) => {
-    const repo = { id: name, name };
-    setRepos((r) => [...r, repo]);
-    setCurrentRepo(repo.id);
+    setRepos((r) => [...r, name]);
+    setCurrentRepo(name);
   };
 
   return (
@@ -51,12 +50,12 @@ const AppRoutes: React.FC = () => {
   }, [user, navigate]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/" element={user ? <Dashboard /> : <Login />} />
-    </Routes>
-  );
+  <Routes>
+    <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+    <Route path="/signup" element={<Signup />} />
+    <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />
+  </Routes>
+);
 };
 
 const App: React.FC = () => (

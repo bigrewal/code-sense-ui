@@ -10,7 +10,7 @@ const IngestForm: React.FC<{ onRepoAdded: (repo: string) => void }> = ({ onRepoA
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const job_id = Date.now().toString();
+    const job_id = input;
     let payload: any;
     if (source === 'upload' && file) {
       const form = new FormData();

@@ -2,7 +2,7 @@ import React from 'react';
 import { Repo } from '../types';
 
 interface Props {
-  repos: Repo[];
+  repos: string[];
   current: string | null;
   onSelect: (id: string) => void;
   onNewChat: () => void;
@@ -19,8 +19,8 @@ const RepoSelector: React.FC<Props> = ({ repos, current, onSelect, onNewChat }) 
         Select repo
       </option>
       {repos.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.name}
+        <option key={r} value={r}>
+          {r}
         </option>
       ))}
     </select>
