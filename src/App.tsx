@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import Login from './components/Login';
-import Signup from './components/Signup';
+import Auth from './components/Auth';
 import IngestForm from './components/IngestForm';
 import Chat from './components/Chat';
 import RepoSelector from './components/RepoSelector';
 import { AuthProvider, useAuth } from './components/AuthContext';
-import { Repo } from './types';
 import { fetchRepos } from './api';
 
 const Dashboard: React.FC = () => {
@@ -50,12 +48,18 @@ const AppRoutes: React.FC = () => {
   }, [user, navigate]);
 
   return (
-  <Routes>
-    <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-    <Route path="/signup" element={<Signup />} />
-    <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />
-  </Routes>
-);
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <Auth initialMode="login" />}
+      />
+      <Route
+        path="/signup"
+        element={user ? <Navigate to="/" replace /> : <Auth initialMode="signup" />}
+      />
+      <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />
+    </Routes>
+  );
 };
 
 const App: React.FC = () => (
