@@ -15,7 +15,20 @@ export const ingestRepo = (form: FormData | { repo_path: string; job_id: string 
 
 export const getStatus = (jobId: string) => api.get(`/status/${jobId}`);
 
-export const queryRepo = (query: string) => api.post('/query', { query });
+export const queryRepo = (query: string) => api.post('/query', { "question" : query });
+
+export const queryRepoStream = async (query: string, signal?: AbortSignal) => {
+  const base =
+    api.defaults.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+  return fetch(`${base}/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: query }),
+    signal,
+  });
+};
+
 
 export const login = (email: string, password: string) =>
   api.post('/login', { email, password });
