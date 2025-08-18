@@ -23,7 +23,6 @@ const Chat: React.FC = () => {
     const controller = new AbortController();
 
     try {
-      // ✅ Uses the same baseURL as axios (http://localhost:8000 by default)
       const resp = await queryRepoStream(question, controller.signal);
 
       if (!resp.ok || !resp.body) {

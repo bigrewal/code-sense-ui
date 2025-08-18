@@ -10,7 +10,7 @@ import { Repo } from './types';
 import { fetchRepos } from './api';
 
 const Dashboard: React.FC = () => {
-  const [repos, setRepos] = useState<Repo[]>([]);
+  const [repos, setRepos] = useState<string[]>([]);
   const [currentRepo, setCurrentRepo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,9 +18,8 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const addRepo = (name: string) => {
-    const repo = { id: name, name };
-    setRepos((r) => [...r, repo]);
-    setCurrentRepo(repo.id);
+    setRepos((r) => [...r, name]);
+    setCurrentRepo(name);
   };
 
   return (
