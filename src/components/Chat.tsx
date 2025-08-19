@@ -100,10 +100,10 @@ const Chat: React.FC<Props> = ({ repos, repo, onRepoChange, onTitle }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-800 text-white">
+    <div className="flex flex-col h-full bg-[#343541]">
       <div className="p-4 border-b border-gray-700">
         <select
-          className="bg-gray-700 p-2 rounded"
+          className="bg-[#40414f] text-gray-100 px-3 py-2 rounded-md focus:outline-none"
           value={repo || ''}
           onChange={(e) => onRepoChange(e.target.value)}
         >
@@ -117,34 +117,37 @@ const Chat: React.FC<Props> = ({ repos, repo, onRepoChange, onTitle }) => {
           ))}
         </select>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-2 p-4">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`p-2 rounded max-w-xl ${
-              m.sender === 'user'
-                ? 'bg-blue-600 self-end text-white'
-                : 'bg-gray-700 self-start'
-            }`}
-          >
-            {m.text}
-          </div>
-        ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto w-full">
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              className={`whitespace-pre-wrap px-4 py-6 border-b border-gray-700/50 last:border-b-0 ${
+                m.sender === 'user' ? 'bg-[#343541]' : 'bg-[#444654]'
+              }`}
+            >
+              {m.text}
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="p-4 flex space-x-2 border-t border-gray-700">
-        <input
-          className="flex-1 p-2 rounded bg-gray-700"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-        />
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-          onClick={sendMessage}
-          disabled={!repo}
-        >
-          Send
-        </button>
+      <div className="border-t border-gray-700 p-4">
+        <div className="max-w-3xl mx-auto w-full flex">
+          <input
+            className="flex-1 bg-[#40414f] text-gray-100 placeholder-gray-400 px-4 py-3 rounded-md focus:outline-none border border-gray-700"
+            value={input}
+            placeholder={repo ? 'Ask a question about the repo...' : 'Select a repo to start chatting'}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          />
+          <button
+            className="ml-2 px-4 py-2 rounded-md bg-green-600 hover:bg-green-500 disabled:bg-green-600/50 text-white"
+            onClick={sendMessage}
+            disabled={!repo}
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );

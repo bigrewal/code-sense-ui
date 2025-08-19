@@ -15,31 +15,33 @@ interface Props {
 
 const Sidebar: React.FC<Props> = ({ conversations, currentId, onSelect, onNew, onIngest }) => {
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col">
+    <div className="w-64 bg-[#202123] text-gray-200 flex flex-col p-2">
       <button
         onClick={onNew}
-        className="m-2 px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-left"
+        className="flex items-center gap-2 px-3 py-2 mb-3 border border-gray-600/50 rounded-md hover:bg-gray-500/10"
       >
-        + New Chat
+        <span className="text-lg">+</span>
+        <span>New Chat</span>
       </button>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto space-y-1">
         {conversations.map((c) => (
           <button
             key={c.id}
             onClick={() => onSelect(c.id)}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-800 ${
-              currentId === c.id ? 'bg-gray-800' : ''
+            className={`w-full flex items-center px-3 py-2 rounded-md hover:bg-gray-500/10 ${
+              currentId === c.id ? 'bg-gray-500/20' : ''
             }`}
           >
-            {c.title || 'New Chat'}
+            <span className="truncate">{c.title || 'New Chat'}</span>
           </button>
         ))}
       </div>
       <button
         onClick={onIngest}
-        className="m-2 px-4 py-2 rounded bg-gray-800 hover:bg-gray-700 text-left"
+        className="mt-2 flex items-center gap-2 px-3 py-2 border border-gray-600/50 rounded-md hover:bg-gray-500/10"
       >
-        Ingest Code Repo
+        <span className="text-lg">⬆</span>
+        <span>Ingest Code Repo</span>
       </button>
     </div>
   );

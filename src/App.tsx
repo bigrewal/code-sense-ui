@@ -40,7 +40,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-full bg-[#343541] text-gray-100">
       <Sidebar
         conversations={conversations}
         currentId={currentConv}
@@ -58,16 +58,21 @@ const Dashboard: React.FC = () => {
             onTitle={updateTitle}
           />
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-400">
+          <div className="h-full flex items-center justify-center text-gray-500">
             Start a new chat
           </div>
         )}
         {showIngest && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white p-4 rounded shadow w-96">
-              <IngestForm onRepoAdded={(r) => { addRepo(r); setShowIngest(false); }} />
+            <div className="bg-[#202123] text-gray-100 p-6 rounded-lg w-96 shadow-lg space-y-4">
+              <IngestForm
+                onRepoAdded={(r) => {
+                  addRepo(r);
+                  setShowIngest(false);
+                }}
+              />
               <button
-                className="mt-4 text-sm text-blue-500"
+                className="w-full rounded-md bg-gray-700 hover:bg-gray-600 px-4 py-2 text-sm"
                 onClick={() => setShowIngest(false)}
               >
                 Close

@@ -26,9 +26,9 @@ const IngestForm: React.FC<{ onRepoAdded: (repo: string) => void }> = ({ onRepoA
   };
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <div className="flex space-x-4">
+    <div className="space-y-4 text-gray-200">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex space-x-4 text-sm">
           <label className="flex items-center space-x-1">
             <input
               type="radio"
@@ -55,16 +55,23 @@ const IngestForm: React.FC<{ onRepoAdded: (repo: string) => void }> = ({ onRepoA
           </label>
         </div>
         {source === 'upload' ? (
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <input
+            type="file"
+            className="w-full text-sm text-gray-200"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+          />
         ) : (
           <input
-            className="w-full border p-2"
+            className="w-full bg-[#40414f] border border-gray-700 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none"
             placeholder={source === 'github' ? 'https://github.com/user/repo' : '/path/to/repo'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
         )}
-        <button className="bg-purple-500 text-white px-4 py-2 rounded" type="submit">
+        <button
+          className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md"
+          type="submit"
+        >
           Ingest
         </button>
       </form>
