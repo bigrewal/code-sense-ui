@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
-import { queryRepo, queryRepoStream} from '../api';
+import { queryRepoStream } from '../api';
 import { Message } from '../types';
 
-const Chat: React.FC = () => {
+interface Props {
+  repos: string[];
+  repo: string | null;
+  onRepoChange: (repo: string) => void;
+  onTitle: (title: string) => void;
+}
+
+const Chat: React.FC<Props> = ({ repos, repo, onRepoChange, onTitle }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !repo) return;
 
-    // 1) Push user message
+    if (messages.length === 0) {
+      onTitle(input.slice(0, 30));
+    }
+
     const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: input };
     setMessages((m) => [...m, userMsg]);
 
-    // 2) Prepare empty bot message to progressively fill
     const botId = (Date.now() + 1).toString();
     setMessages((m) => [...m, { id: botId, sender: 'bot', text: '' }]);
 
@@ -23,7 +32,7 @@ const Chat: React.FC = () => {
     const controller = new AbortController();
 
     try {
-      const resp = await queryRepoStream(question, controller.signal);
+      const resp = await queryRepoStream(repo, question, controller.signal);
 
       if (!resp.ok || !resp.body) {
         let errText = `Request failed (${resp?.status || 'no status'})`;
@@ -35,7 +44,6 @@ const Chat: React.FC = () => {
         return;
       }
 
-      // 3) Stream & parse SSE
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -46,13 +54,11 @@ const Chat: React.FC = () => {
 
         buffer += decoder.decode(value, { stream: true });
 
-        // SSE events end with a blank line
         let idx;
         while ((idx = buffer.indexOf('\n\n')) !== -1) {
           const rawEvent = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
 
-          // Gather data: lines
           const dataLines = rawEvent
             .split('\n')
             .filter((l) => l.startsWith('data:'))
@@ -94,25 +100,49 @@ const Chat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto space-y-2 p-4 bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-800 text-white">
+      <div className="p-4 border-b border-gray-700">
+        <select
+          className="bg-gray-700 p-2 rounded"
+          value={repo || ''}
+          onChange={(e) => onRepoChange(e.target.value)}
+        >
+          <option value="" disabled>
+            Select repo
+          </option>
+          {repos.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-2 p-4">
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`p-2 rounded max-w-xl ${m.sender === 'user' ? 'bg-blue-100 self-end' : 'bg-gray-200 self-start'}`}
+            className={`p-2 rounded max-w-xl ${
+              m.sender === 'user'
+                ? 'bg-blue-600 self-end text-white'
+                : 'bg-gray-700 self-start'
+            }`}
           >
             {m.text}
           </div>
         ))}
       </div>
-      <div className="p-4 flex space-x-2">
+      <div className="p-4 flex space-x-2 border-t border-gray-700">
         <input
-          className="flex-1 border p-2 rounded"
+          className="flex-1 p-2 rounded bg-gray-700"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
         />
-        <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={sendMessage}>
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={sendMessage}
+          disabled={!repo}
+        >
           Send
         </button>
       </div>

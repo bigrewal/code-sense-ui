@@ -1,40 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { getStatus } from '../api';
 
+interface Stage {
+  stage_name: string;
+  status: string;
+}
+
 const StatusViewer: React.FC<{ jobId: string }> = ({ jobId }) => {
-  const [status, setStatus] = useState<string>('pending');
+  const [stages, setStages] = useState<Stage[]>([]);
 
   useEffect(() => {
     const id = setInterval(async () => {
       const res = await getStatus(jobId);
-      const stages = res.data?.stages || [];
-
-      const failed = stages.find((s: any) => s.status === 'failed');
-      const done = stages.some(
-        (s: any) => s.stage_name === 'Mental Model Generation' && s.status === 'completed'
-      );
-
-      if (failed) {
-        setStatus(`failed: ${failed.stage_name}`);
-        clearInterval(id);
-        return;
-      }
-
-      if (done) {
-        setStatus('completed');
-        clearInterval(id);
-        return;
-      }
-
-      const latest = stages[stages.length - 1];
-      setStatus(latest ? `${latest.stage_name}: ${latest.status}` : 'pending');
+      setStages(res.data?.stages || []);
     }, 2000);
 
     return () => clearInterval(id);
   }, [jobId]);
 
   return (
-    <div className="p-2 bg-gray-100 rounded">Status: {status}</div>
+    <div className="p-2 bg-gray-100 rounded">
+      <h4 className="font-semibold mb-2">Ingestion Progress</h4>
+      <ul className="space-y-1 text-sm">
+        {stages.map((s) => (
+          <li key={s.stage_name} className="flex justify-between">
+            <span>{s.stage_name}</span>
+            <span>{s.status}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 
