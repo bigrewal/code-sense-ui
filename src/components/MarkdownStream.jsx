@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function MarkdownStream({ content, walkthroughState, contentRef }) {
   return (
@@ -7,8 +8,8 @@ export default function MarkdownStream({ content, walkthroughState, contentRef }
       className="flex-1 overflow-y-auto px-6 py-4 bg-white"
     >
       {content ? (
-        <div className="prose max-w-none">
-          <pre className="whitespace-pre-wrap text-sm">{content}</pre>
+        <div className="prose prose-sm max-w-none">
+          <ReactMarkdown>{content}</ReactMarkdown>
         </div>
       ) : (
         <div className="text-gray-400 text-sm italic">
