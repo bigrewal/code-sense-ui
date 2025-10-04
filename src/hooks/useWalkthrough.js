@@ -7,12 +7,16 @@ export function useWalkthrough() {
   const [expandedRepos, setExpandedRepos] = useState({});
   
   const [walkthroughState, setWalkthroughState] = useState('not_started');
-  const [plan, setPlan] = useState(null);
+  const [planData, setPlanData] = useState(null); // Full plan response
+  const [selectedEntryPoint, setSelectedEntryPoint] = useState(0); // Index of selected entry point
   const [currentStep, setCurrentStep] = useState(0);
   const [markdownContent, setMarkdownContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   
   const contentRef = useRef(null);
+
+  // Get the current active plan based on selected entry point
+  const activePlan = planData?.plans?.[selectedEntryPoint] || null;
 
   useEffect(() => {
     walkthroughApi.fetchRepos()
@@ -26,12 +30,13 @@ export function useWalkthrough() {
     setWalkthroughState('loading');
     setCurrentStep(0);
     setMarkdownContent('');
+    setSelectedEntryPoint(0);
     
     try {
       await walkthroughApi.startWalkthrough(selectedRepo);
-      const planData = await walkthroughApi.fetchPlan(selectedRepo);
+      const planResponse = await walkthroughApi.fetchPlan(selectedRepo);
       
-      setPlan(planData);
+      setPlanData(planResponse);
       setWalkthroughState('ready');
     } catch (err) {
       console.error('Failed to start walkthrough:', err);
@@ -40,7 +45,7 @@ export function useWalkthrough() {
   };
 
   const handleNext = async () => {
-    if (!selectedRepo || currentStep >= (plan?.sequence?.length || 0)) return;
+    if (!selectedRepo || !activePlan || currentStep >= (activePlan.sequence?.length || 0)) return;
     
     setIsStreaming(true);
     setMarkdownContent('');
@@ -62,6 +67,12 @@ export function useWalkthrough() {
     }
   };
 
+  const handleEntryPointChange = (index) => {
+    setSelectedEntryPoint(index);
+    setCurrentStep(0);
+    setMarkdownContent('');
+  };
+
   const toggleRepo = (repo) => {
     setExpandedRepos(prev => ({ ...prev, [repo]: !prev[repo] }));
   };
@@ -69,7 +80,8 @@ export function useWalkthrough() {
   const selectRepo = (repo) => {
     setSelectedRepo(repo);
     setWalkthroughState('not_started');
-    setPlan(null);
+    setPlanData(null);
+    setSelectedEntryPoint(0);
     setCurrentStep(0);
     setMarkdownContent('');
   };
@@ -79,7 +91,9 @@ export function useWalkthrough() {
     selectedRepo,
     expandedRepos,
     walkthroughState,
-    plan,
+    planData,
+    activePlan,
+    selectedEntryPoint,
     currentStep,
     markdownContent,
     isStreaming,
@@ -87,6 +101,7 @@ export function useWalkthrough() {
     toggleRepo,
     selectRepo,
     handleStartWalkthrough,
-    handleNext
+    handleNext,
+    handleEntryPointChange
   };
 }

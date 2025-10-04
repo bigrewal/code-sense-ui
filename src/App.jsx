@@ -2,6 +2,7 @@ import React from 'react';
 import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
+import EntryPointSelector from './components/EntryPointSelector';
 import PlanVisualization from './components/PlanVisualization';
 import Breadcrumbs from './components/Breadcrumbs';
 import MarkdownStream from './components/MarkdownStream';
@@ -14,7 +15,9 @@ export default function App() {
     selectedRepo,
     expandedRepos,
     walkthroughState,
-    plan,
+    planData,
+    activePlan,
+    selectedEntryPoint,
     currentStep,
     markdownContent,
     isStreaming,
@@ -22,7 +25,8 @@ export default function App() {
     toggleRepo,
     selectRepo,
     handleStartWalkthrough,
-    handleNext
+    handleNext,
+    handleEntryPointChange
   } = useWalkthrough();
 
   return (
@@ -56,7 +60,7 @@ export default function App() {
               </button>
               <button
                 onClick={handleNext}
-                disabled={walkthroughState !== 'ready' || isStreaming || currentStep >= (plan?.sequence?.length || 0)}
+                disabled={walkthroughState !== 'ready' || isStreaming || currentStep >= (activePlan?.sequence?.length || 0)}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
               >
                 Next
@@ -68,19 +72,27 @@ export default function App() {
           <StatusBar
             walkthroughState={walkthroughState}
             currentStep={currentStep}
-            totalSteps={plan?.sequence?.length || 0}
+            totalSteps={activePlan?.sequence?.length || 0}
           />
 
-          {plan && (
+          {planData && planData.entry_points?.length > 1 && (
+            <EntryPointSelector
+              entryPoints={planData.entry_points}
+              selectedIndex={selectedEntryPoint}
+              onSelect={handleEntryPointChange}
+            />
+          )}
+
+          {activePlan && (
             <PlanVisualization
-              plan={plan}
+              plan={activePlan}
               currentStep={currentStep}
             />
           )}
 
-          {plan && currentStep > 0 && (
+          {activePlan && currentStep > 0 && (
             <Breadcrumbs
-              sequence={plan.sequence}
+              sequence={activePlan.sequence}
               currentStep={currentStep}
             />
           )}
