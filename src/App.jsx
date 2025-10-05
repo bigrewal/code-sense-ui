@@ -15,9 +15,9 @@ export default function App() {
     selectedRepo,
     expandedRepos,
     walkthroughState,
-    planData,
-    activePlan,
-    selectedEntryPoint,
+    planData,              // CHANGED from 'plan'
+    activePlan,            // NEW
+    selectedEntryPoint,    // NEW
     currentStep,
     markdownContent,
     isStreaming,
@@ -26,7 +26,8 @@ export default function App() {
     selectRepo,
     handleStartWalkthrough,
     handleNext,
-    handleEntryPointChange
+    handleGotoStep,        // NEW
+    handleEntryPointChange // NEW
   } = useWalkthrough();
 
   return (
@@ -83,16 +84,17 @@ export default function App() {
             />
           )}
 
-          {activePlan && (
+          {activePlan && (  /* CHANGED from plan to activePlan */
             <PlanVisualization
-              plan={activePlan}
+              plan={activePlan}  /* CHANGED from plan to activePlan */
               currentStep={currentStep}
+              onNodeClick={handleGotoStep}  /* NEW - Pass click handler */
             />
           )}
 
-          {activePlan && currentStep > 0 && (
+          {activePlan && currentStep > 0 && (  /* CHANGED from plan to activePlan */
             <Breadcrumbs
-              sequence={activePlan.sequence}
+              sequence={activePlan.sequence}  /* CHANGED from plan to activePlan */
               currentStep={currentStep}
             />
           )}
