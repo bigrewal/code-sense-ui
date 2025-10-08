@@ -25,11 +25,16 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async streamNext(repoId, onChunk) {
+  async streamNext(repoId, entryPoint, currentLevel, depth, onChunk) {  // UPDATED parameters
     const response = await fetch(`${API_BASE}/walkthrough/repo/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_id: repoId })
+      body: JSON.stringify({ 
+        repo_id: repoId,
+        entry_point: entryPoint,      // NEW
+        current_level: currentLevel,  // NEW
+        depth: depth                  // NEW
+      })
     });
 
     const reader = response.body.getReader();
