@@ -8,6 +8,8 @@ export function useWalkthrough() {
   
   const [walkthroughState, setWalkthroughState] = useState('not_started');
   const [planData, setPlanData] = useState(null);
+  const [architectureData, setArchitectureData] = useState(null); // NEW
+  const [viewMode, setViewMode] = useState('walkthrough'); // NEW: 'walkthrough' or 'architecture'
   const [selectedEntryPoint, setSelectedEntryPoint] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [markdownContent, setMarkdownContent] = useState('');
@@ -30,12 +32,15 @@ export function useWalkthrough() {
     setCurrentStep(0);
     setMarkdownContent('');
     setSelectedEntryPoint(0);
+    setViewMode('walkthrough'); // NEW: Reset to walkthrough view
     
     try {
       await walkthroughApi.startWalkthrough(selectedRepo);
       const planResponse = await walkthroughApi.fetchPlan(selectedRepo);
+      const archResponse = await walkthroughApi.fetchArchitecture(selectedRepo); // NEW
       
       setPlanData(planResponse);
+      setArchitectureData(archResponse); // NEW
       setWalkthroughState('ready');
     } catch (err) {
       console.error('Failed to start walkthrough:', err);
@@ -51,15 +56,10 @@ export function useWalkthrough() {
     setMarkdownContent('');
     
     try {
-      // Get current entry point
       const entryPoint = planData.entry_points?.[selectedEntryPoint] || null;
-      
-      // Get current level (default to 0 if at start)
       const currentLevel = currentStep > 0 
         ? (activePlan.sequence[currentStep - 1]?.level || 0)
         : 0;
-      
-      // Fixed depth of 2 for now
       const depth = 2;
       
       await walkthroughApi.streamNext(
@@ -110,6 +110,14 @@ export function useWalkthrough() {
     }
   };
 
+  const handleToggleArchitecture = () => { // NEW FUNCTION
+    if (viewMode === 'walkthrough') {
+      setViewMode('architecture');
+    } else {
+      setViewMode('walkthrough');
+    }
+  };
+
   const handleEntryPointChange = (index) => {
     setSelectedEntryPoint(index);
     setCurrentStep(0);
@@ -124,6 +132,8 @@ export function useWalkthrough() {
     setSelectedRepo(repo);
     setWalkthroughState('not_started');
     setPlanData(null);
+    setArchitectureData(null); // NEW
+    setViewMode('walkthrough'); // NEW
     setSelectedEntryPoint(0);
     setCurrentStep(0);
     setMarkdownContent('');
@@ -135,6 +145,8 @@ export function useWalkthrough() {
     expandedRepos,
     walkthroughState,
     planData,
+    architectureData, // NEW
+    viewMode, // NEW
     activePlan,
     selectedEntryPoint,
     currentStep,
@@ -146,6 +158,7 @@ export function useWalkthrough() {
     handleStartWalkthrough,
     handleNext,
     handleGotoStep,
+    handleToggleArchitecture, // NEW
     handleEntryPointChange
   };
 }

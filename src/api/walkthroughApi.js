@@ -25,15 +25,20 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async streamNext(repoId, entryPoint, currentLevel, depth, onChunk) {  // UPDATED parameters
+  async fetchArchitecture(repoId) {  // NEW FUNCTION
+    const response = await fetch(`${API_BASE}/repo/architecture?repo_id=${repoId}`);
+    return response.json();
+  },
+
+  async streamNext(repoId, entryPoint, currentLevel, depth, onChunk) {
     const response = await fetch(`${API_BASE}/walkthrough/repo/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         repo_id: repoId,
-        entry_point: entryPoint,      // NEW
-        current_level: currentLevel,  // NEW
-        depth: depth                  // NEW
+        entry_point: entryPoint,
+        current_level: currentLevel,
+        depth: depth
       })
     });
 

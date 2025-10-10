@@ -1,15 +1,20 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-export default function MarkdownStream({ content, walkthroughState, contentRef }) {
+export default function MarkdownStream({ content, walkthroughState, contentRef, title }) {
   return (
     <div 
       ref={contentRef}
       className="flex-1 overflow-y-auto px-6 py-4 bg-white"
     >
+      {title && (
+        <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b">{title}</h2>
+      )}
+      
       {content ? (
         <div className="prose prose-sm max-w-none">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
       ) : (
         <div className="text-gray-400 text-sm italic">

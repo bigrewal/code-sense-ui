@@ -1,4 +1,5 @@
 import React from 'react';
+import { FileText } from 'lucide-react';
 import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
@@ -15,9 +16,11 @@ export default function App() {
     selectedRepo,
     expandedRepos,
     walkthroughState,
-    planData,              // CHANGED from 'plan'
-    activePlan,            // NEW
-    selectedEntryPoint,    // NEW
+    planData,
+    architectureData,
+    viewMode,
+    activePlan,
+    selectedEntryPoint,
     currentStep,
     markdownContent,
     isStreaming,
@@ -26,8 +29,9 @@ export default function App() {
     selectRepo,
     handleStartWalkthrough,
     handleNext,
-    handleGotoStep,        // NEW
-    handleEntryPointChange // NEW
+    handleGotoStep,
+    handleToggleArchitecture,
+    handleEntryPointChange
   } = useWalkthrough();
 
   return (
@@ -59,9 +63,29 @@ export default function App() {
                 <span>▶</span>
                 Start
               </button>
+              
+              {/* NEW: Architecture Toggle Button */}
+              <button
+                onClick={handleToggleArchitecture}
+                disabled={walkthroughState !== 'ready' || !architectureData}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                {viewMode === 'architecture' ? (
+                  <>
+                    <span>←</span>
+                    Back to Walkthrough
+                  </>
+                ) : (
+                  <>
+                    <FileText size={16} />
+                    Architecture
+                  </>
+                )}
+              </button>
+
               <button
                 onClick={handleNext}
-                disabled={walkthroughState !== 'ready' || isStreaming || currentStep >= (activePlan?.sequence?.length || 0)}
+                disabled={walkthroughState !== 'ready' || isStreaming || viewMode === 'architecture' || currentStep >= (activePlan?.sequence?.length || 0)}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
               >
                 Next
@@ -76,33 +100,40 @@ export default function App() {
             totalSteps={activePlan?.sequence?.length || 0}
           />
 
-          {planData && planData.entry_points?.length > 1 && (
-            <EntryPointSelector
-              entryPoints={planData.entry_points}
-              selectedIndex={selectedEntryPoint}
-              onSelect={handleEntryPointChange}
-            />
+          {/* Only show these in walkthrough mode */}
+          {viewMode === 'walkthrough' && (
+            <>
+              {planData && planData.entry_points?.length > 1 && (
+                <EntryPointSelector
+                  entryPoints={planData.entry_points}
+                  selectedIndex={selectedEntryPoint}
+                  onSelect={handleEntryPointChange}
+                />
+              )}
+
+              {activePlan && (
+                <PlanVisualization
+                  plan={activePlan}
+                  currentStep={currentStep}
+                  onNodeClick={handleGotoStep}
+                />
+              )}
+
+              {activePlan && currentStep > 0 && (
+                <Breadcrumbs
+                  sequence={activePlan.sequence}
+                  currentStep={currentStep}
+                />
+              )}
+            </>
           )}
 
-          {activePlan && (  /* CHANGED from plan to activePlan */
-            <PlanVisualization
-              plan={activePlan}  /* CHANGED from plan to activePlan */
-              currentStep={currentStep}
-              onNodeClick={handleGotoStep}  /* NEW - Pass click handler */
-            />
-          )}
-
-          {activePlan && currentStep > 0 && (  /* CHANGED from plan to activePlan */
-            <Breadcrumbs
-              sequence={activePlan.sequence}  /* CHANGED from plan to activePlan */
-              currentStep={currentStep}
-            />
-          )}
-
+          {/* Markdown Stream - shows either walkthrough or architecture */}
           <MarkdownStream
-            content={markdownContent}
+            content={viewMode === 'architecture' ? architectureData?.architecture : markdownContent}
             walkthroughState={walkthroughState}
             contentRef={contentRef}
+            title={viewMode === 'architecture' ? '' : null}
           />
 
           <Footer />
