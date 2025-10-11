@@ -25,7 +25,7 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async fetchArchitecture(repoId) {  // NEW FUNCTION
+  async fetchArchitecture(repoId) {
     const response = await fetch(`${API_BASE}/repo/architecture?repo_id=${repoId}`);
     return response.json();
   },
