@@ -30,16 +30,22 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async streamNext(repoId, entryPoint, currentLevel, depth, onChunk) {
+  async streamNext(repoId, entryPoint, currentLevel, currentFilePath, onChunk) {  // CHANGED: depth -> currentFilePath
+    const body = { 
+      repo_id: repoId,
+      entry_point: entryPoint,
+      current_level: currentLevel
+    };
+    
+    // Only add current_file_path if it's not null
+    if (currentFilePath !== null) {
+      body.current_file_path = currentFilePath;
+    }
+    
     const response = await fetch(`${API_BASE}/walkthrough/repo/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        repo_id: repoId,
-        entry_point: entryPoint,
-        current_level: currentLevel,
-        depth: depth
-      })
+      body: JSON.stringify(body)
     });
 
     const reader = response.body.getReader();
