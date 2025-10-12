@@ -11,6 +11,7 @@ export function useWalkthrough() {
   const [architectureData, setArchitectureData] = useState(null);
   const [viewMode, setViewMode] = useState('walkthrough');
   const [selectedEntryPoint, setSelectedEntryPoint] = useState(0);
+  const [depth, setDepth] = useState(2);
   const [currentStep, setCurrentStep] = useState(0);
   const [markdownContent, setMarkdownContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -36,7 +37,7 @@ export function useWalkthrough() {
     
     try {
       await walkthroughApi.startWalkthrough(selectedRepo);
-      const planResponse = await walkthroughApi.fetchPlan(selectedRepo);
+      const planResponse = await walkthroughApi.fetchPlan(selectedRepo, depth); // PASS depth
       const archResponse = await walkthroughApi.fetchArchitecture(selectedRepo);
       
       setPlanData(planResponse);
@@ -58,12 +59,10 @@ export function useWalkthrough() {
     try {
       const entryPoint = planData.entry_points?.[selectedEntryPoint] || null;
       
-      // Get current level (default to 0 if at start)
       const currentLevel = currentStep > 0 
         ? (activePlan.sequence[currentStep - 1]?.level || 0)
         : 0;
       
-      // Get current file path (null if at start, otherwise previous file)
       const currentFilePath = currentStep > 0
         ? (activePlan.sequence[currentStep - 1]?.file_path || null)
         : null;
@@ -72,7 +71,8 @@ export function useWalkthrough() {
         selectedRepo,
         entryPoint,
         currentLevel,
-        currentFilePath,  // CHANGED: pass currentFilePath instead of depth
+        currentFilePath,
+        depth,
         (content) => {
           setMarkdownContent(content);
           
@@ -130,6 +130,28 @@ export function useWalkthrough() {
     setMarkdownContent('');
   };
 
+  const handleDepthChange = async (newDepth) => {  // MADE ASYNC and refetch plan
+    if (!selectedRepo) return;
+    
+    setDepth(newDepth);
+    
+    // Refetch plan with new depth if walkthrough is already started
+    if (walkthroughState === 'ready') {
+      setWalkthroughState('loading');
+      setCurrentStep(0);
+      setMarkdownContent('');
+      
+      try {
+        const planResponse = await walkthroughApi.fetchPlan(selectedRepo, newDepth);
+        setPlanData(planResponse);
+        setWalkthroughState('ready');
+      } catch (err) {
+        console.error('Failed to refetch plan with new depth:', err);
+        setWalkthroughState('ready'); // Keep it ready even if refetch fails
+      }
+    }
+  };
+
   const toggleRepo = (repo) => {
     setExpandedRepos(prev => ({ ...prev, [repo]: !prev[repo] }));
   };
@@ -141,6 +163,7 @@ export function useWalkthrough() {
     setArchitectureData(null);
     setViewMode('walkthrough');
     setSelectedEntryPoint(0);
+    setDepth(2);
     setCurrentStep(0);
     setMarkdownContent('');
   };
@@ -155,6 +178,7 @@ export function useWalkthrough() {
     viewMode,
     activePlan,
     selectedEntryPoint,
+    depth,
     currentStep,
     markdownContent,
     isStreaming,
@@ -165,6 +189,7 @@ export function useWalkthrough() {
     handleNext,
     handleGotoStep,
     handleToggleArchitecture,
-    handleEntryPointChange
+    handleEntryPointChange,
+    handleDepthChange,
   };
 }

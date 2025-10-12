@@ -16,11 +16,11 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async fetchPlan(repoId) {
+  async fetchPlan(repoId, depth = 2) {
     const response = await fetch(`${API_BASE}/repo/walkthrough/plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_id: repoId })
+      body: JSON.stringify({ repo_id: repoId, depth: depth })
     });
     return response.json();
   },
@@ -30,18 +30,18 @@ export const walkthroughApi = {
     return response.json();
   },
 
-  async streamNext(repoId, entryPoint, currentLevel, currentFilePath, onChunk) {  // CHANGED: depth -> currentFilePath
+  async streamNext(repoId, entryPoint, currentLevel, currentFilePath, depth, onChunk) {  // ADDED depth parameter
     const body = { 
       repo_id: repoId,
       entry_point: entryPoint,
-      current_level: currentLevel
+      current_level: currentLevel,
+      depth: depth // NEW: Add depth to request body
     };
     
-    // Only add current_file_path if it's not null
     if (currentFilePath !== null) {
       body.current_file_path = currentFilePath;
     }
-    
+
     const response = await fetch(`${API_BASE}/repo/walkthrough/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

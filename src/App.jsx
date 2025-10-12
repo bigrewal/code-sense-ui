@@ -21,6 +21,7 @@ export default function App() {
     viewMode,
     activePlan,
     selectedEntryPoint,
+    depth,
     currentStep,
     markdownContent,
     isStreaming,
@@ -31,7 +32,8 @@ export default function App() {
     handleNext,
     handleGotoStep,
     handleToggleArchitecture,
-    handleEntryPointChange
+    handleEntryPointChange,
+    handleDepthChange,
   } = useWalkthrough();
 
   return (
@@ -64,7 +66,6 @@ export default function App() {
                 Start
               </button>
               
-              {/* NEW: Architecture Toggle Button */}
               <button
                 onClick={handleToggleArchitecture}
                 disabled={walkthroughState !== 'ready' || !architectureData}
@@ -100,14 +101,15 @@ export default function App() {
             totalSteps={activePlan?.sequence?.length || 0}
           />
 
-          {/* Only show these in walkthrough mode */}
           {viewMode === 'walkthrough' && (
             <>
-              {planData && planData.entry_points?.length > 1 && (
+              {planData && (
                 <EntryPointSelector
                   entryPoints={planData.entry_points}
                   selectedIndex={selectedEntryPoint}
                   onSelect={handleEntryPointChange}
+                  depth={depth}
+                  onDepthChange={handleDepthChange}
                 />
               )}
 
@@ -128,12 +130,11 @@ export default function App() {
             </>
           )}
 
-          {/* Markdown Stream - shows either walkthrough or architecture */}
           <MarkdownStream
             content={viewMode === 'architecture' ? architectureData?.architecture : markdownContent}
             walkthroughState={walkthroughState}
             contentRef={contentRef}
-            title={viewMode === 'architecture' ? '' : null}
+            title={viewMode === 'architecture' ? 'Repository Architecture Overview' : null}
           />
 
           <Footer />
