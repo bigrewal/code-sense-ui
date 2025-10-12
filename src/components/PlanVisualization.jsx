@@ -8,6 +8,7 @@ import ReactFlow, {
   Handle,
   Position
 } from 'reactflow';
+import { List } from 'lucide-react';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 
@@ -76,6 +77,7 @@ const getLayoutedElements = (nodes, edges) => {
 
 export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [showOutline, setShowOutline] = useState(false); // NEW: Toggle state for outline
   
   const nodeTypes = useMemo(() => ({
     custom: CustomNode,
@@ -179,19 +181,28 @@ export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
 
   return (
     <div className="bg-white px-6 py-4 border-b">
-      <div className="grid grid-cols-2 gap-4 h-80">
+      <div className={`grid ${showOutline ? 'grid-cols-[60%_40%]' : 'grid-cols-1'} gap-4 h-80`}>
         {/* Interactive Graph with Hierarchical Layout */}
         <div className="border rounded bg-gray-50 overflow-hidden">
           <div className="text-sm font-medium text-gray-700 p-2 bg-white border-b flex items-center justify-between">
             <span>Dependency Graph</span>
-            {selectedNodeId && (
-              <button 
-                onClick={() => setSelectedNodeId(null)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+            <div className="flex items-center gap-2">
+              {selectedNodeId && (
+                <button 
+                  onClick={() => setSelectedNodeId(null)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Clear Selection
+                </button>
+              )}
+              <button
+                onClick={() => setShowOutline(!showOutline)}
+                className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded hover:bg-gray-100"
               >
-                Clear Selection
+                <List size={14} />
+                {showOutline ? 'Hide' : 'Show'} Outline
               </button>
-            )}
+            </div>
           </div>
           <ReactFlow
             nodes={nodes}
@@ -209,30 +220,32 @@ export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
           </ReactFlow>
         </div>
 
-        {/* Outline */}
-        <div className="border rounded p-4 bg-gray-50 overflow-y-auto">
-          <div className="text-sm font-medium text-gray-700 mb-2">Sequence Outline</div>
-          <div className="space-y-1">
-            {plan?.sequence?.map((item, idx) => (
-              <div 
-                key={idx}
-                className={`text-xs py-1 px-2 rounded cursor-pointer hover:bg-gray-200 transition-colors group relative ${
-                  idx === currentStep - 1 ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-600'
-                }`}
-                style={{ paddingLeft: `${item.level * 12 + 8}px` }}
-                onClick={() => onNodeClick && onNodeClick(item.file_path)}
-                title={item.file_path}
-              >
-                {idx + 1}. {item.file_path.split('/').pop()} {item.level > 0 && `(level ${item.level})`}
-                
-                {/* Tooltip for outline items */}
-                <div className="absolute left-full ml-2 top-0 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                  {item.file_path}
+        {/* Outline - Only show when toggled */}
+        {showOutline && (
+          <div className="border rounded p-4 bg-gray-50 overflow-y-auto">
+            <div className="text-sm font-medium text-gray-700 mb-2">Sequence Outline</div>
+            <div className="space-y-1">
+              {plan?.sequence?.map((item, idx) => (
+                <div 
+                  key={idx}
+                  className={`text-xs py-1 px-2 rounded cursor-pointer hover:bg-gray-200 transition-colors group relative ${
+                    idx === currentStep - 1 ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-600'
+                  }`}
+                  style={{ paddingLeft: `${item.level * 12 + 8}px` }}
+                  onClick={() => onNodeClick && onNodeClick(item.file_path)}
+                  title={item.file_path}
+                >
+                  {idx + 1}. {item.file_path.split('/').pop()} {item.level > 0 && `(level ${item.level})`}
+                  
+                  {/* Tooltip for outline items */}
+                  <div className="absolute left-full ml-2 top-0 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                    {item.file_path}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       {/* Legend when node is selected */}
