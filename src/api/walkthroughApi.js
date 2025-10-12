@@ -8,7 +8,7 @@ export const walkthroughApi = {
   },
 
   async startWalkthrough(repoId) {
-    const response = await fetch(`${API_BASE}/walkthrough/repo/start`, {
+    const response = await fetch(`${API_BASE}/repo/walkthrough/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repo_id: repoId })
@@ -17,7 +17,7 @@ export const walkthroughApi = {
   },
 
   async fetchPlan(repoId) {
-    const response = await fetch(`${API_BASE}/walkthrough/repo/plan`, {
+    const response = await fetch(`${API_BASE}/repo/walkthrough/plan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repo_id: repoId })
@@ -42,7 +42,7 @@ export const walkthroughApi = {
       body.current_file_path = currentFilePath;
     }
     
-    const response = await fetch(`${API_BASE}/walkthrough/repo/next`, {
+    const response = await fetch(`${API_BASE}/repo/walkthrough/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -65,7 +65,7 @@ export const walkthroughApi = {
   },
 
   async gotoStep(repoId, filePath, onChunk) {
-    const response = await fetch(`${API_BASE}/walkthrough/goto`, {
+    const response = await fetch(`${API_BASE}/repo/walkthrough/goto`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repo_id: repoId, file_path: filePath })
