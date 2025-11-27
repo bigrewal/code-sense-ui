@@ -9,12 +9,18 @@ export function useWalkthrough() {
   const [walkthroughState, setWalkthroughState] = useState('not_started');
   const [planData, setPlanData] = useState(null);
   const [architectureData, setArchitectureData] = useState(null);
-  const [viewMode, setViewMode] = useState('walkthrough');
+  const [viewMode, setViewMode] = useState('walkthrough'); // 'walkthrough' | 'architecture' | 'chat'
   const [selectedEntryPoint, setSelectedEntryPoint] = useState(0);
   const [depth, setDepth] = useState(2);
   const [currentStep, setCurrentStep] = useState(0);
   const [markdownContent, setMarkdownContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  
+  // NEW: Chat state
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [isChatStreaming, setIsChatStreaming] = useState(false);
   
   const contentRef = useRef(null);
 
@@ -25,6 +31,17 @@ export function useWalkthrough() {
       .then(setRepos)
       .catch(err => console.error('Failed to fetch repos:', err));
   }, []);
+
+  // NEW: Load conversations when repo is selected
+  useEffect(() => {
+    if (selectedRepo) {
+      walkthroughApi.listConversations(selectedRepo)
+        .then(setConversations)
+        .catch(err => console.error('Failed to fetch conversations:', err));
+    } else {
+      setConversations([]);
+    }
+  }, [selectedRepo]);
 
   const handleStartWalkthrough = async () => {
     if (!selectedRepo) return;
@@ -37,7 +54,7 @@ export function useWalkthrough() {
     
     try {
       await walkthroughApi.startWalkthrough(selectedRepo);
-      const planResponse = await walkthroughApi.fetchPlan(selectedRepo, depth); // PASS depth
+      const planResponse = await walkthroughApi.fetchPlan(selectedRepo, depth);
       const archResponse = await walkthroughApi.fetchArchitecture(selectedRepo);
       
       setPlanData(planResponse);
@@ -59,13 +76,12 @@ export function useWalkthrough() {
     try {
       const entryPoint = planData.entry_points?.[selectedEntryPoint] || null;
       
-      const currentLevel = currentStep > 0 
-        ? (activePlan.sequence[currentStep - 1]?.level || 0)
-        : 0;
-      
-      const currentFilePath = currentStep > 0
-        ? (activePlan.sequence[currentStep - 1]?.file_path || null)
+      const currentSequenceItem = currentStep > 0 
+        ? activePlan.sequence[currentStep - 1]
         : null;
+      
+      const currentLevel = currentSequenceItem?.level || 0;
+      const currentFilePath = currentSequenceItem?.file_path || null;
       
       await walkthroughApi.streamNext(
         selectedRepo,
@@ -130,12 +146,11 @@ export function useWalkthrough() {
     setMarkdownContent('');
   };
 
-  const handleDepthChange = async (newDepth) => {  // MADE ASYNC and refetch plan
+  const handleDepthChange = async (newDepth) => {
     if (!selectedRepo) return;
     
     setDepth(newDepth);
     
-    // Refetch plan with new depth if walkthrough is already started
     if (walkthroughState === 'ready') {
       setWalkthroughState('loading');
       setCurrentStep(0);
@@ -147,8 +162,78 @@ export function useWalkthrough() {
         setWalkthroughState('ready');
       } catch (err) {
         console.error('Failed to refetch plan with new depth:', err);
-        setWalkthroughState('ready'); // Keep it ready even if refetch fails
+        setWalkthroughState('ready');
       }
+    }
+  };
+
+  // NEW: Chat functions
+  const handleNewConversation = async () => {
+    if (!selectedRepo) return;
+    
+    try {
+      const newConv = await walkthroughApi.createConversation(selectedRepo);
+      setConversations(prev => [newConv, ...prev]);
+      setSelectedConversationId(newConv.conversation_id);
+      setChatMessages([]);
+      setViewMode('chat');
+    } catch (err) {
+      console.error('Failed to create conversation:', err);
+    }
+  };
+
+  const handleSelectConversation = async (conversationId) => {
+    setSelectedConversationId(conversationId);
+    setViewMode('chat');
+    
+    try {
+      const response = await walkthroughApi.getConversationMessages(conversationId);
+      setChatMessages(response.messages || []);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    }
+  };
+
+  const handleSendMessage = async (message) => {
+    if (!selectedConversationId) return;
+    
+    // Add user message immediately
+    const userMessage = {
+      role: 'user',
+      content: message,
+      created_at: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+    
+    // Start streaming assistant response
+    setIsChatStreaming(true);
+    let assistantMessage = {
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString()
+    };
+    
+    try {
+      await walkthroughApi.sendChatMessage(
+        selectedConversationId,
+        message,
+        (content) => {
+          assistantMessage.content = content;
+          setChatMessages(prev => {
+            const withoutLast = prev.slice(0, -1);
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant') {
+              return [...withoutLast, assistantMessage];
+            } else {
+              return [...prev, assistantMessage];
+            }
+          });
+        }
+      );
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    } finally {
+      setIsChatStreaming(false);
     }
   };
 
@@ -166,6 +251,8 @@ export function useWalkthrough() {
     setDepth(2);
     setCurrentStep(0);
     setMarkdownContent('');
+    setSelectedConversationId(null);
+    setChatMessages([]);
   };
 
   return {
@@ -183,6 +270,11 @@ export function useWalkthrough() {
     markdownContent,
     isStreaming,
     contentRef,
+    // NEW: Chat exports
+    conversations,
+    selectedConversationId,
+    chatMessages,
+    isChatStreaming,
     toggleRepo,
     selectRepo,
     handleStartWalkthrough,
@@ -191,5 +283,9 @@ export function useWalkthrough() {
     handleToggleArchitecture,
     handleEntryPointChange,
     handleDepthChange,
+    // NEW: Chat handlers
+    handleNewConversation,
+    handleSelectConversation,
+    handleSendMessage,
   };
 }

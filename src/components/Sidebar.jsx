@@ -1,10 +1,22 @@
 import React from 'react';
 import { ChevronRight, ChevronDown, FileCode, Folder } from 'lucide-react';
+import ConversationList from './ConversationList';
 
-export default function Sidebar({ repos, selectedRepo, expandedRepos, toggleRepo, selectRepo }) {
+export default function Sidebar({ 
+  repos, 
+  selectedRepo, 
+  expandedRepos, 
+  toggleRepo, 
+  selectRepo,
+  conversations,
+  selectedConversationId,
+  onSelectConversation,
+  onNewConversation
+}) {
   return (
     <div className="w-64 bg-white border-r overflow-y-auto">
       <div className="p-4">
+        {/* Repositories Section */}
         <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
           <Folder size={16} />
           <span>Repositories</span>
@@ -35,6 +47,16 @@ export default function Sidebar({ repos, selectedRepo, expandedRepos, toggleRepo
             )}
           </div>
         ))}
+
+        {/* Conversations Section */}
+        {selectedRepo && (
+          <ConversationList
+            conversations={conversations}
+            selectedConversationId={selectedConversationId}
+            onSelectConversation={onSelectConversation}
+            onNewConversation={onNewConversation}
+          />
+        )}
       </div>
     </div>
   );

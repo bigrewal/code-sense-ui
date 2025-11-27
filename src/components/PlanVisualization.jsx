@@ -77,7 +77,8 @@ const getLayoutedElements = (nodes, edges) => {
 
 export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
-  const [showOutline, setShowOutline] = useState(false); // NEW: Toggle state for outline
+  const [showOutline, setShowOutline] = useState(false);
+  const [containerHeight, setContainerHeight] = useState(320); // NEW: State for height (320px = 80 * 4)
   
   const nodeTypes = useMemo(() => ({
     custom: CustomNode,
@@ -179,9 +180,33 @@ export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
     setSelectedNodeId(null);
   }, []);
 
+  // NEW: Handle resize
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = containerHeight;
+
+    const handleMouseMove = (e) => {
+      const deltaY = e.clientY - startY;
+      const newHeight = Math.max(200, Math.min(800, startHeight + deltaY)); // Min 200px, Max 800px
+      setContainerHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <div className="bg-white px-6 py-4 border-b">
-      <div className={`grid ${showOutline ? 'grid-cols-[60%_40%]' : 'grid-cols-1'} gap-4 h-80`}>
+      <div 
+        className={`grid ${showOutline ? 'grid-cols-[60%_40%]' : 'grid-cols-1'} gap-4 relative`}
+        style={{ height: `${containerHeight}px` }}
+      >
         {/* Interactive Graph with Hierarchical Layout */}
         <div className="border rounded bg-gray-50 overflow-hidden">
           <div className="text-sm font-medium text-gray-700 p-2 bg-white border-b flex items-center justify-between">
@@ -246,6 +271,14 @@ export default function PlanVisualization({ plan, currentStep, onNodeClick }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* NEW: Resize Handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="w-full h-2 cursor-ns-resize hover:bg-blue-200 active:bg-blue-300 transition-colors flex items-center justify-center group"
+      >
+        <div className="w-12 h-1 bg-gray-300 rounded group-hover:bg-blue-400 transition-colors"></div>
       </div>
       
       {/* Legend when node is selected */}

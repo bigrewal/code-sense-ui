@@ -85,5 +85,54 @@ export const walkthroughApi = {
     }
 
     return accumulated;
+  },
+
+  async createConversation(repoId) {
+    const response = await fetch(`${API_BASE}/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_id: repoId })
+    });
+    return response.json();
+  },
+
+  async listConversations(repoId = null, limit = 50, offset = 0) {
+    const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
+    if (repoId) {
+      params.append('repo_id', repoId);
+    }
+    const response = await fetch(`${API_BASE}/conversations?${params}`);
+    return response.json();
+  },
+
+  async getConversationMessages(conversationId, limit = 200) {
+    const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages?limit=${limit}`);
+    return response.json();
+  },
+
+  async sendChatMessage(conversationId, message, onChunk) {
+    const response = await fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        conversation_id: conversationId,
+        message: message
+      })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      accumulated += chunk;
+      onChunk(accumulated);
+    }
+
+    return accumulated;
   }
 };
