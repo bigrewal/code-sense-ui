@@ -11,7 +11,8 @@ export default function Sidebar({
   conversations,
   selectedConversationId,
   onSelectConversation,
-  onNewConversation
+  onNewConversation,
+  onDeleteConversation
 }) {
   return (
     <div className="w-64 bg-white border-r overflow-y-auto">
@@ -55,6 +56,7 @@ export default function Sidebar({
             selectedConversationId={selectedConversationId}
             onSelectConversation={onSelectConversation}
             onNewConversation={onNewConversation}
+            onDeleteConversation={onDeleteConversation}
           />
         )}
       </div>

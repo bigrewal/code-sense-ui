@@ -205,7 +205,15 @@ export function useWalkthrough() {
     };
     setChatMessages(prev => [...prev, userMessage]);
     
-    // Start streaming assistant response
+    // Add placeholder for assistant response with loading indicator
+    const loadingMessage = {
+      role: 'assistant',
+      content: 'Gathering data...',
+      created_at: new Date().toISOString(),
+      isLoading: true  // NEW FLAG
+    };
+    setChatMessages(prev => [...prev, loadingMessage]);
+    
     setIsChatStreaming(true);
     let assistantMessage = {
       role: 'assistant',
@@ -213,16 +221,24 @@ export function useWalkthrough() {
       created_at: new Date().toISOString()
     };
     
+    let firstChunk = true;
+    
     try {
       await walkthroughApi.sendChatMessage(
         selectedConversationId,
         message,
         (content) => {
+          if (firstChunk) {
+            firstChunk = false;
+            // Remove loading message and start actual content
+            setChatMessages(prev => prev.slice(0, -1));
+          }
+          
           assistantMessage.content = content;
           setChatMessages(prev => {
             const withoutLast = prev.slice(0, -1);
             const last = prev[prev.length - 1];
-            if (last?.role === 'assistant') {
+            if (last?.role === 'assistant' && !last?.isLoading) {
               return [...withoutLast, assistantMessage];
             } else {
               return [...prev, assistantMessage];
@@ -232,6 +248,8 @@ export function useWalkthrough() {
       );
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Remove loading message on error
+      setChatMessages(prev => prev.filter(m => !m.isLoading));
     } finally {
       setIsChatStreaming(false);
     }
@@ -253,6 +271,25 @@ export function useWalkthrough() {
     setMarkdownContent('');
     setSelectedConversationId(null);
     setChatMessages([]);
+  };
+
+  // Add this function with the other chat functions
+  const handleDeleteConversation = async (conversationId) => {
+    try {
+      await walkthroughApi.deleteConversation(conversationId);
+      
+      // Remove from conversations list
+      setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
+      
+      // If deleted conversation was selected, clear chat view
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+        setChatMessages([]);
+        setViewMode('walkthrough');
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
   };
 
   return {
@@ -287,5 +324,6 @@ export function useWalkthrough() {
     handleNewConversation,
     handleSelectConversation,
     handleSendMessage,
+    handleDeleteConversation,
   };
 }

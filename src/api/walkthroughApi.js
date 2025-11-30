@@ -134,5 +134,12 @@ export const walkthroughApi = {
     }
 
     return accumulated;
+  },
+
+  async deleteConversation(conversationId) {
+    const response = await fetch(`${API_BASE}/conversations/${conversationId}`, {
+      method: 'DELETE',
+    });
+    return response.json();
   }
 };

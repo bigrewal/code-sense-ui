@@ -42,6 +42,7 @@ export default function App() {
     handleNewConversation,
     handleSelectConversation,
     handleSendMessage,
+    handleDeleteConversation,
   } = useWalkthrough();
 
   return (
@@ -59,6 +60,7 @@ export default function App() {
           selectedConversationId={selectedConversationId}
           onSelectConversation={handleSelectConversation}
           onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

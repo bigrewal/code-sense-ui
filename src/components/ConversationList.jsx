@@ -1,12 +1,20 @@
 import React from 'react';
-import { MessageSquare, Plus } from 'lucide-react';
+import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 
 export default function ConversationList({ 
   conversations, 
   selectedConversationId, 
   onSelectConversation, 
-  onNewConversation 
+  onNewConversation,
+  onDeleteConversation
 }) {
+  const handleDelete = (e, conversationId) => {
+    e.stopPropagation(); // Prevent selecting conversation when clicking delete
+    if (window.confirm('Are you sure you want to delete this conversation?')) {
+      onDeleteConversation(conversationId);
+    }
+  };
+
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between px-4 mb-2">
@@ -33,16 +41,23 @@ export default function ConversationList({
             <div
               key={conv.conversation_id}
               onClick={() => onSelectConversation(conv.conversation_id)}
-              className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer text-sm ${
+              className={`flex items-center gap-2 py-2 px-2 rounded cursor-pointer text-sm group ${
                 selectedConversationId === conv.conversation_id
                   ? 'bg-blue-50 text-blue-700'
                   : 'hover:bg-gray-50 text-gray-600'
               }`}
             >
-              <MessageSquare size={14} />
+              <MessageSquare size={14} className="flex-shrink-0" />
               <span className="truncate flex-1">
                 {conv.title || `Chat ${new Date(conv.created_at).toLocaleDateString()}`}
               </span>
+              <button
+                onClick={(e) => handleDelete(e, conv.conversation_id)}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
+                title="Delete conversation"
+              >
+                <Trash2 size={14} className="text-red-600" />
+              </button>
             </div>
           ))
         )}
