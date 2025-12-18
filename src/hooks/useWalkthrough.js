@@ -6,25 +6,17 @@ export function useWalkthrough() {
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [expandedRepos, setExpandedRepos] = useState({});
   
-  const [walkthroughState, setWalkthroughState] = useState('not_started');
-  const [planData, setPlanData] = useState(null);
-  const [architectureData, setArchitectureData] = useState(null);
-  const [viewMode, setViewMode] = useState('walkthrough'); // 'walkthrough' | 'architecture' | 'chat'
-  const [selectedEntryPoint, setSelectedEntryPoint] = useState(0);
-  const [depth, setDepth] = useState(2);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [markdownContent, setMarkdownContent] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  
-  // NEW: Chat state
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
   
+  const [ingestModalOpen, setIngestModalOpen] = useState(false);
+  const [ingestionJobs, setIngestionJobs] = useState([]); // Track individual jobs
+  const [batches, setBatches] = useState({}); // Track batches by batch_id
+  
   const contentRef = useRef(null);
-
-  const activePlan = planData?.plans?.[selectedEntryPoint] || null;
+  const pollingIntervals = useRef({}); // Store polling intervals per job_id
 
   useEffect(() => {
     walkthroughApi.fetchRepos()
@@ -32,7 +24,34 @@ export function useWalkthrough() {
       .catch(err => console.error('Failed to fetch repos:', err));
   }, []);
 
-  // NEW: Load conversations when repo is selected
+  useEffect(() => {
+    walkthroughApi.listJobs({ limit: 100 })
+      .then(response => {
+        if (response.jobs && response.jobs.length > 0) {
+          const jobs = response.jobs.map(job => ({
+            jobId: job.job_id,
+            repo_name: job.repo_name,
+            status: job.status,
+            current_stage: job.current_stage,
+            error: job.error,
+            isBatch: !!job.batch_id,
+            batchId: job.batch_id,
+            batchIndex: job.batch_index
+          }));
+          
+          setIngestionJobs(jobs);
+          
+          // Start polling for any running/pending/queued jobs
+          jobs.forEach(job => {
+            if (['running', 'pending', 'queued'].includes(job.status)) {
+              startPollingJob(job.jobId);
+            }
+          });
+        }
+      })
+      .catch(err => console.error('Failed to fetch existing jobs:', err));
+  }, []);
+
   useEffect(() => {
     if (selectedRepo) {
       walkthroughApi.listConversations(selectedRepo)
@@ -43,131 +62,14 @@ export function useWalkthrough() {
     }
   }, [selectedRepo]);
 
-  const handleStartWalkthrough = async () => {
-    if (!selectedRepo) return;
-    
-    setWalkthroughState('loading');
-    setCurrentStep(0);
-    setMarkdownContent('');
-    setSelectedEntryPoint(0);
-    setViewMode('walkthrough');
-    
-    try {
-      await walkthroughApi.startWalkthrough(selectedRepo);
-      const planResponse = await walkthroughApi.fetchPlan(selectedRepo, depth);
-      const archResponse = await walkthroughApi.fetchArchitecture(selectedRepo);
-      
-      setPlanData(planResponse);
-      setArchitectureData(archResponse);
-      setWalkthroughState('ready');
-    } catch (err) {
-      console.error('Failed to start walkthrough:', err);
-      setWalkthroughState('not_started');
-    }
-  };
-
-  const handleNext = async () => {
-    if (!selectedRepo || !activePlan || !planData) return;
-    if (currentStep >= (activePlan.sequence?.length || 0)) return;
-    
-    setIsStreaming(true);
-    setMarkdownContent('');
-    
-    try {
-      const entryPoint = planData.entry_points?.[selectedEntryPoint] || null;
-      
-      const currentSequenceItem = currentStep > 0 
-        ? activePlan.sequence[currentStep - 1]
-        : null;
-      
-      const currentLevel = currentSequenceItem?.level || 0;
-      const currentFilePath = currentSequenceItem?.file_path || null;
-      
-      await walkthroughApi.streamNext(
-        selectedRepo,
-        entryPoint,
-        currentLevel,
-        currentFilePath,
-        depth,
-        (content) => {
-          setMarkdownContent(content);
-          
-          if (contentRef.current) {
-            contentRef.current.scrollTop = contentRef.current.scrollHeight;
-          }
-        }
-      );
-      
-      setCurrentStep(prev => prev + 1);
-    } catch (err) {
-      console.error('Failed to fetch next:', err);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
-  const handleGotoStep = async (filePath) => {
-    if (!selectedRepo || !activePlan) return;
-    
-    setIsStreaming(true);
-    setMarkdownContent('');
-    
-    try {
-      await walkthroughApi.gotoStep(selectedRepo, filePath, (content) => {
-        setMarkdownContent(content);
-        
-        if (contentRef.current) {
-          contentRef.current.scrollTop = contentRef.current.scrollHeight;
-        }
+  useEffect(() => {
+    return () => {
+      Object.values(pollingIntervals.current).forEach(interval => {
+        if (interval) clearInterval(interval);
       });
-      
-      const stepIndex = activePlan.sequence.findIndex(s => s.file_path === filePath);
-      if (stepIndex !== -1) {
-        setCurrentStep(stepIndex + 1);
-      }
-    } catch (err) {
-      console.error('Failed to goto step:', err);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
+    };
+  }, []);
 
-  const handleToggleArchitecture = () => {
-    if (viewMode === 'walkthrough') {
-      setViewMode('architecture');
-    } else {
-      setViewMode('walkthrough');
-    }
-  };
-
-  const handleEntryPointChange = (index) => {
-    setSelectedEntryPoint(index);
-    setCurrentStep(0);
-    setMarkdownContent('');
-  };
-
-  const handleDepthChange = async (newDepth) => {
-    if (!selectedRepo) return;
-    
-    setDepth(newDepth);
-    
-    if (walkthroughState === 'ready') {
-      setWalkthroughState('loading');
-      setCurrentStep(0);
-      setMarkdownContent('');
-      
-      try {
-        const planResponse = await walkthroughApi.fetchPlan(selectedRepo, newDepth);
-        setPlanData(planResponse);
-        setWalkthroughState('ready');
-      } catch (err) {
-        console.error('Failed to refetch plan with new depth:', err);
-        setWalkthroughState('ready');
-      }
-    }
-  };
-
-  // NEW: Chat functions
   const handleNewConversation = async () => {
     if (!selectedRepo) return;
     
@@ -176,7 +78,6 @@ export function useWalkthrough() {
       setConversations(prev => [newConv, ...prev]);
       setSelectedConversationId(newConv.conversation_id);
       setChatMessages([]);
-      setViewMode('chat');
     } catch (err) {
       console.error('Failed to create conversation:', err);
     }
@@ -184,7 +85,6 @@ export function useWalkthrough() {
 
   const handleSelectConversation = async (conversationId) => {
     setSelectedConversationId(conversationId);
-    setViewMode('chat');
     
     try {
       const response = await walkthroughApi.getConversationMessages(conversationId);
@@ -197,7 +97,6 @@ export function useWalkthrough() {
   const handleSendMessage = async (message) => {
     if (!selectedConversationId) return;
     
-    // Add user message immediately
     const userMessage = {
       role: 'user',
       content: message,
@@ -205,12 +104,11 @@ export function useWalkthrough() {
     };
     setChatMessages(prev => [...prev, userMessage]);
     
-    // Add placeholder for assistant response with loading indicator
     const loadingMessage = {
       role: 'assistant',
       content: 'Gathering data...',
       created_at: new Date().toISOString(),
-      isLoading: true  // NEW FLAG
+      isLoading: true
     };
     setChatMessages(prev => [...prev, loadingMessage]);
     
@@ -230,7 +128,6 @@ export function useWalkthrough() {
         (content) => {
           if (firstChunk) {
             firstChunk = false;
-            // Remove loading message and start actual content
             setChatMessages(prev => prev.slice(0, -1));
           }
           
@@ -248,10 +145,247 @@ export function useWalkthrough() {
       );
     } catch (err) {
       console.error('Failed to send message:', err);
-      // Remove loading message on error
       setChatMessages(prev => prev.filter(m => !m.isLoading));
     } finally {
       setIsChatStreaming(false);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId) => {
+    try {
+      await walkthroughApi.deleteConversation(conversationId);
+      
+      setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
+      
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+        setChatMessages([]);
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  };
+
+  const handleDeleteRepo = async (repoName, deleteFiles) => {
+    try {
+      await walkthroughApi.deleteRepo(repoName, deleteFiles);
+      
+      setRepos(prev => prev.filter(r => r !== repoName));
+      
+      if (selectedRepo === repoName) {
+        setSelectedRepo(null);
+        setConversations([]);
+        setSelectedConversationId(null);
+        setChatMessages([]);
+      }
+    } catch (err) {
+      console.error('Failed to delete repo:', err);
+      alert('Failed to delete repository');
+    }
+  };
+
+  const handleOpenIngestModal = () => {
+    setIngestModalOpen(true);
+  };
+
+  const handleCloseIngestModal = () => {
+    setIngestModalOpen(false);
+  };
+
+  // Poll individual job status
+  const pollJobStatus = async (jobId) => {
+    try {
+      const status = await walkthroughApi.getJobStatus(jobId);
+      
+      setIngestionJobs(prev => {
+        const existing = prev.find(j => j.jobId === jobId);
+        if (existing) {
+          return prev.map(j => 
+            j.jobId === jobId 
+              ? { ...j, ...status, jobId }
+              : j
+          );
+        } else {
+          return [...prev, { ...status, jobId }];
+        }
+      });
+
+      // Stop polling if completed or failed
+      if (status.status === 'completed' || status.status === 'failed') {
+        if (pollingIntervals.current[jobId]) {
+          clearInterval(pollingIntervals.current[jobId]);
+          delete pollingIntervals.current[jobId];
+        }
+        
+        // Refresh repos list if completed
+        if (status.status === 'completed') {
+          walkthroughApi.fetchRepos()
+            .then(setRepos)
+            .catch(err => console.error('Failed to refresh repos:', err));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to poll job status:', err);
+    }
+  };
+
+  // Start polling for a job
+  const startPollingJob = (jobId) => {
+    // Poll immediately
+    pollJobStatus(jobId);
+    
+    // Set up interval
+    pollingIntervals.current[jobId] = setInterval(() => {
+      pollJobStatus(jobId);
+    }, 60000); // 60 seconds
+  };
+
+  // Handle single repo ingestion
+  const handleIngestRepo = async (repoName) => {
+    try {
+      const result = await walkthroughApi.ingestRepo(repoName);
+      
+      // Close modal immediately
+      setIngestModalOpen(false);
+      
+      // Single repo response: {job_id, repo_name, status}
+      if (result.job_id) {
+        setIngestionJobs(prev => [...prev, {
+          jobId: result.job_id,
+          repo_name: result.repo_name,
+          status: result.status || 'queued',
+          current_stage: 'queued',
+          error: null,
+          isBatch: false
+        }]);
+        
+        startPollingJob(result.job_id);
+      }
+      
+    } catch (err) {
+      console.error('Failed to ingest repo:', err);
+      throw err;
+    }
+  };
+
+  // Handle batch ingestion
+  const handleIngestRepos = async (repoNames) => {
+    try {
+      const result = await walkthroughApi.ingestRepos(repoNames);
+      
+      // Close modal immediately
+      setIngestModalOpen(false);
+      
+      // Batch response: {batch_id, jobs: [{job_id, repo_name, status, batch_index}]}
+      if (result.batch_id && result.jobs) {
+        // Store batch info
+        setBatches(prev => ({
+          ...prev,
+          [result.batch_id]: {
+            batchId: result.batch_id,
+            totalJobs: result.jobs.length,
+            jobs: result.jobs.map(j => j.job_id)
+          }
+        }));
+        
+        // Add all jobs to tracking
+        const newJobs = result.jobs.map(job => ({
+          jobId: job.job_id,
+          repo_name: job.repo_name,
+          status: job.status || 'queued',
+          current_stage: 'queued',
+          error: null,
+          isBatch: true,
+          batchId: result.batch_id,
+          batchIndex: job.batch_index
+        }));
+        
+        setIngestionJobs(prev => [...prev, ...newJobs]);
+        
+        // Start polling for all jobs in batch
+        result.jobs.forEach(job => {
+          startPollingJob(job.job_id);
+        });
+      }
+      
+    } catch (err) {
+      console.error('Failed to ingest repos:', err);
+      throw err;
+    }
+  };
+
+  const handleRemoveJob = (jobId) => {
+    const job = ingestionJobs.find(j => j.jobId === jobId);
+    
+    // If it's a batch job, remove entire batch
+    if (job?.isBatch && job?.batchId) {
+      const batchInfo = batches[job.batchId];
+      if (batchInfo) {
+        // Remove all jobs in this batch
+        setIngestionJobs(prev => prev.filter(j => j.batchId !== job.batchId));
+        
+        // Clear all polling intervals for this batch
+        batchInfo.jobs.forEach(jId => {
+          if (pollingIntervals.current[jId]) {
+            clearInterval(pollingIntervals.current[jId]);
+            delete pollingIntervals.current[jId];
+          }
+        });
+        
+        // Remove batch info
+        setBatches(prev => {
+          const updated = { ...prev };
+          delete updated[job.batchId];
+          return updated;
+        });
+      }
+    } else {
+      // Single job removal
+      setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
+      
+      if (pollingIntervals.current[jobId]) {
+        clearInterval(pollingIntervals.current[jobId]);
+        delete pollingIntervals.current[jobId];
+      }
+    }
+  };
+
+  const handleAbortJob = async (jobId) => {
+    try {
+      await walkthroughApi.abortJob(jobId);
+      
+      // Update job status to "aborting"
+      setIngestionJobs(prev => prev.map(j => 
+        j.jobId === jobId 
+          ? { ...j, status: 'aborting' }
+          : j
+      ));
+    } catch (err) {
+      console.error('Failed to abort job:', err);
+      alert('Failed to abort job');
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    try {
+      await walkthroughApi.deleteJob(jobId);
+      
+      // Remove job from list
+      setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
+      
+      // Clear polling interval
+      if (pollingIntervals.current[jobId]) {
+        clearInterval(pollingIntervals.current[jobId]);
+        delete pollingIntervals.current[jobId];
+      }
+    } catch (err) {
+      console.error('Failed to delete job:', err);
+      const errorMsg = err.message || 'Failed to delete job';
+      if (errorMsg.includes('running') || errorMsg.includes('Abort')) {
+        alert('Job is running. Please abort the job before deleting.');
+      } else {
+        alert(errorMsg);
+      }
     }
   };
 
@@ -261,69 +395,35 @@ export function useWalkthrough() {
 
   const selectRepo = (repo) => {
     setSelectedRepo(repo);
-    setWalkthroughState('not_started');
-    setPlanData(null);
-    setArchitectureData(null);
-    setViewMode('walkthrough');
-    setSelectedEntryPoint(0);
-    setDepth(2);
-    setCurrentStep(0);
-    setMarkdownContent('');
     setSelectedConversationId(null);
     setChatMessages([]);
-  };
-
-  // Add this function with the other chat functions
-  const handleDeleteConversation = async (conversationId) => {
-    try {
-      await walkthroughApi.deleteConversation(conversationId);
-      
-      // Remove from conversations list
-      setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
-      
-      // If deleted conversation was selected, clear chat view
-      if (selectedConversationId === conversationId) {
-        setSelectedConversationId(null);
-        setChatMessages([]);
-        setViewMode('walkthrough');
-      }
-    } catch (err) {
-      console.error('Failed to delete conversation:', err);
-    }
   };
 
   return {
     repos,
     selectedRepo,
     expandedRepos,
-    walkthroughState,
-    planData,
-    architectureData,
-    viewMode,
-    activePlan,
-    selectedEntryPoint,
-    depth,
-    currentStep,
-    markdownContent,
-    isStreaming,
-    contentRef,
-    // NEW: Chat exports
     conversations,
     selectedConversationId,
     chatMessages,
     isChatStreaming,
+    contentRef,
+    ingestModalOpen,
+    ingestionJobs,
+    batches,
     toggleRepo,
     selectRepo,
-    handleStartWalkthrough,
-    handleNext,
-    handleGotoStep,
-    handleToggleArchitecture,
-    handleEntryPointChange,
-    handleDepthChange,
-    // NEW: Chat handlers
     handleNewConversation,
     handleSelectConversation,
     handleSendMessage,
     handleDeleteConversation,
+    handleDeleteRepo,
+    handleOpenIngestModal,
+    handleCloseIngestModal,
+    handleIngestRepo,
+    handleIngestRepos,
+    handleRemoveJob,
+    handleAbortJob,
+    handleDeleteJob,
   };
 }

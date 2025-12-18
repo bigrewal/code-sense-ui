@@ -7,86 +7,6 @@ export const walkthroughApi = {
     return data.repos || [];
   },
 
-  async startWalkthrough(repoId) {
-    const response = await fetch(`${API_BASE}/repo/walkthrough/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_id: repoId })
-    });
-    return response.json();
-  },
-
-  async fetchPlan(repoId, depth = 2) {
-    const response = await fetch(`${API_BASE}/repo/walkthrough/plan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_id: repoId, depth: depth })
-    });
-    return response.json();
-  },
-
-  async fetchArchitecture(repoId) {
-    const response = await fetch(`${API_BASE}/repo/architecture?repo_id=${repoId}`);
-    return response.json();
-  },
-
-  async streamNext(repoId, entryPoint, currentLevel, currentFilePath, depth, onChunk) {  // ADDED depth parameter
-    const body = { 
-      repo_id: repoId,
-      entry_point: entryPoint,
-      current_level: currentLevel,
-      depth: depth // NEW: Add depth to request body
-    };
-    
-    if (currentFilePath !== null) {
-      body.current_file_path = currentFilePath;
-    }
-
-    const response = await fetch(`${API_BASE}/repo/walkthrough/next`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulated = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      accumulated += chunk;
-      onChunk(accumulated);
-    }
-
-    return accumulated;
-  },
-
-  async gotoStep(repoId, filePath, onChunk) {
-    const response = await fetch(`${API_BASE}/repo/walkthrough/goto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_id: repoId, file_path: filePath })
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulated = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      accumulated += chunk;
-      onChunk(accumulated);
-    }
-
-    return accumulated;
-  },
-
   async createConversation(repoId) {
     const response = await fetch(`${API_BASE}/conversations`, {
       method: 'POST',
@@ -141,5 +61,78 @@ export const walkthroughApi = {
       method: 'DELETE',
     });
     return response.json();
-  }
+  },
+
+  async deleteRepo(repoName, deleteFiles = false) {
+    const response = await fetch(`${API_BASE}/repos/${repoName}?delete_files=${deleteFiles}`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
+
+  async ingestRepo(repoName) {
+    const response = await fetch(`${API_BASE}/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_name: repoName })
+    });
+    return response.json();
+  },
+
+  async ingestRepos(repoNames) {
+    const response = await fetch(`${API_BASE}/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo_names: repoNames })
+    });
+    return response.json();
+  },
+
+  async getJobStatus(jobId = null, filters = {}) {
+    let url = `${API_BASE}/status`;
+    const params = new URLSearchParams();
+    
+    if (jobId) {
+      params.append('job_id', jobId);
+    }
+    if (filters.batch_id) params.append('batch_id', filters.batch_id);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.repo_name) params.append('repo_name', filters.repo_name);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.skip) params.append('skip', filters.skip.toString());
+    
+    const queryString = params.toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+    
+    const response = await fetch(url);
+    return response.json();
+  },
+
+  async listJobs(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.batch_id) params.append('batch_id', filters.batch_id);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.repo_name) params.append('repo_name', filters.repo_name);
+    params.append('limit', (filters.limit || 50).toString());
+    params.append('skip', (filters.skip || 0).toString());
+    
+    const response = await fetch(`${API_BASE}/status?${params}`);
+    return response.json();
+  },
+
+  async abortJob(jobId) {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}/abort`, {
+      method: 'POST',
+    });
+    return response.json();
+  },
+
+  async deleteJob(jobId) {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
 };
