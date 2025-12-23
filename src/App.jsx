@@ -3,7 +3,7 @@ import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import ChatView from './components/ChatView';
 import IngestRepoModal from './components/IngestRepoModal';
-import { useWalkthrough } from './hooks/useWalkthrough';
+import { useRepoChat } from './hooks/useRepoChat';
 
 export default function App() {
   const {
@@ -31,7 +31,8 @@ export default function App() {
     handleRemoveJob,
     handleAbortJob,
     handleDeleteJob,
-  } = useWalkthrough();
+    handleGetJobDetails,
+  } = useRepoChat();
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -56,6 +57,7 @@ export default function App() {
           onRemoveJob={handleRemoveJob}
           onAbortJob={handleAbortJob}
           onDeleteJob={handleDeleteJob}
+          onGetJobDetails={handleGetJobDetails}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

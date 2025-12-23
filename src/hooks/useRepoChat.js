@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { walkthroughApi } from '../api/walkthroughApi';
+import { Api } from '../api/Api';
 
-export function useWalkthrough() {
+export function useRepoChat() {
   const [repos, setRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [expandedRepos, setExpandedRepos] = useState({});
@@ -19,13 +19,13 @@ export function useWalkthrough() {
   const pollingIntervals = useRef({}); // Store polling intervals per job_id
 
   useEffect(() => {
-    walkthroughApi.fetchRepos()
+    Api.fetchRepos()
       .then(setRepos)
       .catch(err => console.error('Failed to fetch repos:', err));
   }, []);
 
   useEffect(() => {
-    walkthroughApi.listJobs({ limit: 100 })
+    Api.listJobs({ limit: 100 })
       .then(response => {
         if (response.jobs && response.jobs.length > 0) {
           const jobs = response.jobs.map(job => ({
@@ -54,7 +54,7 @@ export function useWalkthrough() {
 
   useEffect(() => {
     if (selectedRepo) {
-      walkthroughApi.listConversations(selectedRepo)
+      Api.listConversations(selectedRepo)
         .then(setConversations)
         .catch(err => console.error('Failed to fetch conversations:', err));
     } else {
@@ -74,7 +74,7 @@ export function useWalkthrough() {
     if (!selectedRepo) return;
     
     try {
-      const newConv = await walkthroughApi.createConversation(selectedRepo);
+      const newConv = await Api.createConversation(selectedRepo);
       setConversations(prev => [newConv, ...prev]);
       setSelectedConversationId(newConv.conversation_id);
       setChatMessages([]);
@@ -87,7 +87,7 @@ export function useWalkthrough() {
     setSelectedConversationId(conversationId);
     
     try {
-      const response = await walkthroughApi.getConversationMessages(conversationId);
+      const response = await Api.getConversationMessages(conversationId);
       setChatMessages(response.messages || []);
     } catch (err) {
       console.error('Failed to load messages:', err);
@@ -122,7 +122,7 @@ export function useWalkthrough() {
     let firstChunk = true;
     
     try {
-      await walkthroughApi.sendChatMessage(
+      await Api.sendChatMessage(
         selectedConversationId,
         message,
         (content) => {
@@ -153,7 +153,7 @@ export function useWalkthrough() {
 
   const handleDeleteConversation = async (conversationId) => {
     try {
-      await walkthroughApi.deleteConversation(conversationId);
+      await Api.deleteConversation(conversationId);
       
       setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
       
@@ -168,7 +168,7 @@ export function useWalkthrough() {
 
   const handleDeleteRepo = async (repoName, deleteFiles) => {
     try {
-      await walkthroughApi.deleteRepo(repoName, deleteFiles);
+      await Api.deleteRepo(repoName, deleteFiles);
       
       setRepos(prev => prev.filter(r => r !== repoName));
       
@@ -195,7 +195,7 @@ export function useWalkthrough() {
   // Poll individual job status
   const pollJobStatus = async (jobId) => {
     try {
-      const status = await walkthroughApi.getJobStatus(jobId);
+      const status = await Api.getJobStatus(jobId);
       
       setIngestionJobs(prev => {
         const existing = prev.find(j => j.jobId === jobId);
@@ -219,7 +219,7 @@ export function useWalkthrough() {
         
         // Refresh repos list if completed
         if (status.status === 'completed') {
-          walkthroughApi.fetchRepos()
+          Api.fetchRepos()
             .then(setRepos)
             .catch(err => console.error('Failed to refresh repos:', err));
         }
@@ -240,26 +240,28 @@ export function useWalkthrough() {
     }, 60000); // 60 seconds
   };
 
-  // Handle single repo ingestion
   const handleIngestRepo = async (repoName) => {
     try {
-      const result = await walkthroughApi.ingestRepo(repoName);
+      const result = await Api.ingestRepos([repoName]); // Pass as single-item array
       
       // Close modal immediately
       setIngestModalOpen(false);
       
-      // Single repo response: {job_id, repo_name, status}
-      if (result.job_id) {
+      // Check if single or batch response
+      if (result.batch_id && result.jobs) {
+        // Even single repo now returns batch format
+        const job = result.jobs[0];
+        
         setIngestionJobs(prev => [...prev, {
-          jobId: result.job_id,
-          repo_name: result.repo_name,
-          status: result.status || 'queued',
+          jobId: job.job_id,
+          repo_name: job.repo_name,
+          status: job.status || 'queued',
           current_stage: 'queued',
           error: null,
           isBatch: false
         }]);
         
-        startPollingJob(result.job_id);
+        startPollingJob(job.job_id);
       }
       
     } catch (err) {
@@ -268,10 +270,19 @@ export function useWalkthrough() {
     }
   };
 
+  const handleGetJobDetails = async (jobId) => {
+    try {
+      return await Api.getJobStatus(jobId);
+    } catch (err) {
+      console.error('Failed to get job details:', err);
+      throw err;
+    }
+  };
+
   // Handle batch ingestion
   const handleIngestRepos = async (repoNames) => {
     try {
-      const result = await walkthroughApi.ingestRepos(repoNames);
+      const result = await Api.ingestRepos(repoNames);
       
       // Close modal immediately
       setIngestModalOpen(false);
@@ -352,7 +363,7 @@ export function useWalkthrough() {
 
   const handleAbortJob = async (jobId) => {
     try {
-      await walkthroughApi.abortJob(jobId);
+      await Api.abortJob(jobId);
       
       // Update job status to "aborting"
       setIngestionJobs(prev => prev.map(j => 
@@ -368,7 +379,7 @@ export function useWalkthrough() {
 
   const handleDeleteJob = async (jobId) => {
     try {
-      await walkthroughApi.deleteJob(jobId);
+      await Api.deleteJob(jobId);
       
       // Remove job from list
       setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
@@ -425,5 +436,6 @@ export function useWalkthrough() {
     handleRemoveJob,
     handleAbortJob,
     handleDeleteJob,
+    handleGetJobDetails,
   };
 }

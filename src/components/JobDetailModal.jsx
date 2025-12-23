@@ -44,12 +44,14 @@ export default function JobDetailModal({ job, isOpen, onClose }) {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = new Date(timestamp * 1000);
+    const date = typeof timestamp === 'number' 
+      ? new Date(timestamp * 1000) 
+      : new Date(timestamp);
     return date.toLocaleString();
   };
 
   const stages = job.stages || {};
-  const stageOrder = ['precheck', 'resolve_refs', 'ast', 'mental_model'];
+  const stageOrder = ['precheck', 'resolve_refs', 'repo_graph', 'mental_model'];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -128,10 +130,25 @@ export default function JobDetailModal({ job, isOpen, onClose }) {
                   {/* Precheck Metrics */}
                   {stageName === 'precheck' && stage.metrics && (
                     <div className="text-xs text-gray-600 space-y-1 mt-2 pl-2 border-l-2 border-gray-200">
-                      <div>Total Tokens: {stage.metrics.total_tokens}</div>
-                      <div>Supported Tokens: {stage.metrics.supported_tokens}</div>
+                      <div>Total Tokens: {stage.metrics.total_tokens?.toLocaleString()}</div>
+                      <div>Supported Tokens: {stage.metrics.supported_tokens?.toLocaleString()}</div>
                       <div>Support Ratio: {(stage.metrics.supported_ratio * 100).toFixed(1)}%</div>
-                      <div>Languages: {stage.metrics.supported_languages?.join(', ')}</div>
+                      <div>Primary Language: {stage.metrics.primary_language}</div>
+                      <div className="pt-1 border-t border-gray-300 mt-2">
+                        <div className="font-medium mb-1">File Counts:</div>
+                        <div className="ml-2">Supported: {stage.metrics.supported_file_count}</div>
+                        <div className="ml-2">Unsupported: {stage.metrics.unsupported_file_count}</div>
+                        <div className="ml-2">Excluded: {stage.metrics.excluded_file_count}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mental Model Metrics */}
+                  {stageName === 'mental_model' && stage.metrics && (
+                    <div className="text-xs text-gray-600 space-y-1 mt-2 pl-2 border-l-2 border-gray-200">
+                      <div>Critical Files: {stage.metrics.critical_files}</div>
+                      <div>Files Ignored: {stage.metrics.files_ignored}</div>
+                      <div>Context Tokens: {stage.metrics.repo_context_token_count?.toLocaleString()}</div>
                     </div>
                   )}
                 </div>

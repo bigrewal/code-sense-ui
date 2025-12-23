@@ -1,6 +1,6 @@
 const API_BASE = 'http://localhost:8000';
 
-export const walkthroughApi = {
+export const Api = {
   async fetchRepos() {
     const response = await fetch(`${API_BASE}/repos`);
     const data = await response.json();
@@ -64,49 +64,25 @@ export const walkthroughApi = {
   },
 
   async deleteRepo(repoName, deleteFiles = false) {
-    const response = await fetch(`${API_BASE}/repos/${repoName}?delete_files=${deleteFiles}`, {
+    const response = await fetch(`${API_BASE}/repos/?delete_files=${deleteFiles}&repo_path=${repoName}`, {
       method: 'DELETE',
     });
     return response.json();
   },
 
-  async ingestRepo(repoName) {
-    const response = await fetch(`${API_BASE}/ingest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_name: repoName })
-    });
-    return response.json();
-  },
-
   async ingestRepos(repoNames) {
+    const repos = Array.isArray(repoNames) ? repoNames : [repoNames];
+    
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_names: repoNames })
+      body: JSON.stringify({ repo_names: repos })
     });
     return response.json();
   },
 
-  async getJobStatus(jobId = null, filters = {}) {
-    let url = `${API_BASE}/status`;
-    const params = new URLSearchParams();
-    
-    if (jobId) {
-      params.append('job_id', jobId);
-    }
-    if (filters.batch_id) params.append('batch_id', filters.batch_id);
-    if (filters.status) params.append('status', filters.status);
-    if (filters.repo_name) params.append('repo_name', filters.repo_name);
-    if (filters.limit) params.append('limit', filters.limit.toString());
-    if (filters.skip) params.append('skip', filters.skip.toString());
-    
-    const queryString = params.toString();
-    if (queryString) {
-      url += `?${queryString}`;
-    }
-    
-    const response = await fetch(url);
+  async getJobStatus(jobId) {
+    const response = await fetch(`${API_BASE}/status?job_id=${jobId}`);
     return response.json();
   },
 

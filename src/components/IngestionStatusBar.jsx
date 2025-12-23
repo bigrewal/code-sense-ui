@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { Loader2, CheckCircle, XCircle, Clock, Layers, StopCircle, Trash2 } from 'lucide-react';
 import JobDetailModal from './JobDetailModal';
+import { Api } from '../api/Api';
 
-export default function IngestionStatusBar({ jobs, batches, onRemoveJob, onAbortJob, onDeleteJob }) {
+export default function IngestionStatusBar({ jobs, batches, onRemoveJob, onAbortJob, onDeleteJob, onGetJobDetails }) {
   const [selectedJob, setSelectedJob] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   if (jobs.length === 0) return null;
 
-  const handleJobClick = (job) => {
-    setSelectedJob(job);
-    setDetailModalOpen(true);
+  const handleJobClick = async (job) => {
+    try {
+      const fullJobDetails = await Api.getJobStatus(job.jobId);
+      setSelectedJob(fullJobDetails);
+      setDetailModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch job details:', err);
+      setSelectedJob(job);
+      setDetailModalOpen(true);
+    }
   };
 
   const getStatusIcon = (status) => {

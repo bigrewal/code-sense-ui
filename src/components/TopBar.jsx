@@ -3,7 +3,7 @@ import React from 'react';
 export default function TopBar() {
   return (
     <div className="bg-white border-b px-6 py-3 flex items-center justify-between">
-      <h1 className="text-xl font-semibold text-gray-800">Code Walkthrough</h1>
+      <h1 className="text-xl font-semibold text-gray-800">Code Sense</h1>
       <div className="flex items-center gap-4">
         <input 
           type="text" 

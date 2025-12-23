@@ -20,7 +20,8 @@ export default function Sidebar({
   batches,
   onRemoveJob,
   onAbortJob,
-  onDeleteJob
+  onDeleteJob,
+  onGetJobDetails,
 }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [repoToDelete, setRepoToDelete] = useState(null);
@@ -107,6 +108,7 @@ export default function Sidebar({
             onRemoveJob={onRemoveJob}
             onAbortJob={onAbortJob}
             onDeleteJob={onDeleteJob}
+            onGetJobDetails={onGetJobDetails}
           />
 
           {/* Conversations Section */}
