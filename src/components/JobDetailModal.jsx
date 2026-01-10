@@ -130,16 +130,30 @@ export default function JobDetailModal({ job, isOpen, onClose }) {
                   {/* Precheck Metrics */}
                   {stageName === 'precheck' && stage.metrics && (
                     <div className="text-xs text-gray-600 space-y-1 mt-2 pl-2 border-l-2 border-gray-200">
-                      <div>Total Tokens: {stage.metrics.total_tokens?.toLocaleString()}</div>
-                      <div>Supported Tokens: {stage.metrics.supported_tokens?.toLocaleString()}</div>
-                      <div>Support Ratio: {(stage.metrics.supported_ratio * 100).toFixed(1)}%</div>
-                      <div>Primary Language: {stage.metrics.primary_language}</div>
-                      <div className="pt-1 border-t border-gray-300 mt-2">
-                        <div className="font-medium mb-1">File Counts:</div>
-                        <div className="ml-2">Supported: {stage.metrics.supported_file_count}</div>
-                        <div className="ml-2">Unsupported: {stage.metrics.unsupported_file_count}</div>
-                        <div className="ml-2">Excluded: {stage.metrics.excluded_file_count}</div>
+                      <div>
+                        Supported Tokens:{' '}
+                        {stage.metrics.supported_tokens?.toLocaleString()}
                       </div>
+                      <div>
+                        Supported File count: {stage.metrics.supported_file_count}
+                      </div>
+
+                      {stage.metrics.language_distribution_pct &&
+                        Object.keys(stage.metrics.language_distribution_pct).length > 0 && (
+                          <div className="pt-1 border-t border-gray-300 mt-2">
+                            <div className="font-medium mb-1">Language distribution:</div>
+                            <div className="ml-2 space-y-0.5">
+                              {Object.entries(stage.metrics.language_distribution_pct).map(
+                                ([language, percentage]) => (
+                                  <div key={language}>
+                                    {language.charAt(0).toUpperCase() + language.slice(1)}:{' '}
+                                    {percentage}%
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   )}
 
