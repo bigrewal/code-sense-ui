@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import ChatView from './components/ChatView';
 import IngestRepoModal from './components/IngestRepoModal';
+import RepoJobsModal from './components/RepoJobsModal';
 import { useRepoChat } from './hooks/useRepoChat';
 
 export default function App() {
@@ -16,7 +17,6 @@ export default function App() {
     isChatStreaming,
     ingestModalOpen,
     ingestionJobs,
-    batches,
     toggleRepo,
     selectRepo,
     handleNewConversation,
@@ -29,18 +29,32 @@ export default function App() {
     handleIngestRepos,
     handleIngestRepo,
     handleRemoveJob,
-    handleAbortJob,
     handleDeleteJob,
-    handleGetJobDetails,
   } = useRepoChat();
 
+  const [repoSearchTerm, setRepoSearchTerm] = useState('');
+  const [jobsModalRepo, setJobsModalRepo] = useState(null);
+
+  const filteredRepos = useMemo(() => {
+    if (!repoSearchTerm.trim()) return repos;
+    const query = repoSearchTerm.trim().toLowerCase();
+    return repos.filter((repo) => repo.toLowerCase().includes(query));
+  }, [repoSearchTerm, repos]);
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <TopBar />
-      
-      <div className="flex flex-1 overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden px-2 py-2 sm:px-4 sm:py-4">
+      <TopBar
+        repoCount={repos.length}
+        activeRepo={selectedRepo}
+        searchTerm={repoSearchTerm}
+        onSearchChange={setRepoSearchTerm}
+      />
+
+      <div className="mt-3 flex flex-1 overflow-hidden gap-3">
         <Sidebar
-          repos={repos}
+          repos={filteredRepos}
+          allRepoCount={repos.length}
+          searchTerm={repoSearchTerm}
           selectedRepo={selectedRepo}
           expandedRepos={expandedRepos}
           toggleRepo={toggleRepo}
@@ -53,26 +67,24 @@ export default function App() {
           onDeleteRepo={handleDeleteRepo}
           onOpenIngestModal={handleOpenIngestModal}
           ingestionJobs={ingestionJobs}
-          batches={batches}
-          onRemoveJob={handleRemoveJob}
-          onAbortJob={handleAbortJob}
-          onDeleteJob={handleDeleteJob}
-          onGetJobDetails={handleGetJobDetails}
+          onOpenRepoJobs={setJobsModalRepo}
         />
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="surface-card fade-in-up flex-1 flex flex-col overflow-hidden rounded-3xl">
           {selectedConversationId ? (
             <ChatView
               messages={chatMessages}
               onSendMessage={handleSendMessage}
               isStreaming={isChatStreaming}
-              conversationId={selectedConversationId}
+              selectedRepo={selectedRepo}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <p className="text-lg mb-2">Select a repository and start a conversation</p>
-                <p className="text-sm">or create a new chat to get started</p>
+            <div className="flex-1 flex items-center justify-center px-4">
+              <div className="text-center max-w-md">
+                <p className="text-2xl font-semibold text-slate-800 mb-2">Select a repository to begin</p>
+                <p className="text-sm text-slate-500">
+                  Choose a repo from the catalog, then open or create a conversation.
+                </p>
               </div>
             </div>
           )}
@@ -83,7 +95,16 @@ export default function App() {
         isOpen={ingestModalOpen}
         onClose={handleCloseIngestModal}
         onIngest={handleIngestRepo}
-        onIngestBatch={handleIngestRepos} // ADD THIS
+        onIngestBatch={handleIngestRepos}
+      />
+
+      <RepoJobsModal
+        isOpen={Boolean(jobsModalRepo)}
+        repoName={jobsModalRepo}
+        jobs={ingestionJobs}
+        onClose={() => setJobsModalRepo(null)}
+        onRemoveJob={handleRemoveJob}
+        onDeleteJob={handleDeleteJob}
       />
     </div>
   );

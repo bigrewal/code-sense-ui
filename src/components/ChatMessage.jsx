@@ -5,37 +5,37 @@ import { User, Bot } from 'lucide-react';
 
 export default function ChatMessage({ message }) {
   const isUser = message.role === 'user';
-  
+
   return (
-    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`mb-4 flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} fade-in-up`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-          <Bot size={18} className="text-blue-600" />
+        <div className="mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-700">
+          <Bot size={18} />
         </div>
       )}
-      
+
       <div
-        className={`max-w-[70%] rounded-lg px-4 py-2 ${
+        className={`max-w-[80%] rounded-2xl border px-4 py-3 shadow-sm sm:max-w-[72%] ${
           isUser
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 text-gray-800'
+            ? 'border-cyan-600 bg-cyan-600 text-white'
+            : 'border-slate-200 bg-white text-slate-800'
         }`}
       >
         {isUser ? (
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none">
+          <div className="prose prose-sm max-w-none prose-headings:text-slate-900 prose-p:text-slate-700 prose-code:text-cyan-700">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
         )}
-        <div className={`text-xs mt-1 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}>
+        <div className={`mt-2 text-[11px] ${isUser ? 'text-cyan-100' : 'text-slate-500'}`}>
           {new Date(message.created_at).toLocaleTimeString()}
         </div>
       </div>
-      
+
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-          <User size={18} className="text-gray-600" />
+        <div className="mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-slate-600">
+          <User size={18} />
         </div>
       )}
     </div>

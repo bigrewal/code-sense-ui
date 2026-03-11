@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, FileCode, Folder, Trash2, X, Plus } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronDown,
+  FileCode,
+  Folder,
+  Trash2,
+  X,
+  Plus,
+  CircleDashed,
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  ListChecks,
+} from 'lucide-react';
 import ConversationList from './ConversationList';
-import IngestionStatusBar from './IngestionStatusBar';
 
-export default function Sidebar({ 
-  repos, 
-  selectedRepo, 
-  expandedRepos, 
-  toggleRepo, 
+export default function Sidebar({
+  repos,
+  allRepoCount,
+  searchTerm,
+  selectedRepo,
+  expandedRepos,
+  toggleRepo,
   selectRepo,
   conversations,
   selectedConversationId,
@@ -17,11 +31,7 @@ export default function Sidebar({
   onDeleteRepo,
   onOpenIngestModal,
   ingestionJobs,
-  batches,
-  onRemoveJob,
-  onAbortJob,
-  onDeleteJob,
-  onGetJobDetails,
+  onOpenRepoJobs,
 }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [repoToDelete, setRepoToDelete] = useState(null);
@@ -49,69 +59,122 @@ export default function Sidebar({
     setDeleteFiles(false);
   };
 
+  const getRepoStatus = (repo) => {
+    const repoJobs = ingestionJobs
+      .filter(job => job.repo_name === repo)
+      .sort((a, b) => {
+        const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return bTime - aTime;
+      });
+
+    if (repoJobs.length === 0) {
+      return { label: 'Ready', tone: 'ready', icon: CheckCircle2 };
+    }
+
+    const latest = repoJobs[0];
+    if (latest.status === 'running' || latest.status === 'queued' || latest.status === 'pending') {
+      return { label: 'Ingesting', tone: 'ingesting', icon: Loader2 };
+    }
+
+    if (latest.status === 'failed' || latest.status === 'cancelled') {
+      return { label: 'Attention', tone: 'attention', icon: AlertTriangle };
+    }
+
+    return { label: 'Ready', tone: 'ready', icon: CheckCircle2 };
+  };
+
+  const statusStyles = {
+    ready: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+    ingesting: 'text-cyan-700 bg-cyan-50 border-cyan-200',
+    attention: 'text-amber-700 bg-amber-50 border-amber-200',
+    unknown: 'text-slate-600 bg-slate-100 border-slate-200',
+  };
+
   return (
     <>
-      <div className="w-64 bg-white border-r overflow-y-auto">
+      <div className="surface-card fade-in-up w-full max-w-[340px] overflow-y-auto rounded-3xl">
         <div className="p-4">
-          {/* Repositories Section */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Folder size={16} />
               <span>Repositories</span>
             </div>
             <button
               onClick={onOpenIngestModal}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-100"
               title="Ingest repository"
             >
               <Plus size={16} className="text-gray-600" />
             </button>
           </div>
-          
-          {repos.map(repo => (
-            <div key={repo} className="ml-2">
-              <div 
-                className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 rounded cursor-pointer group"
-                onClick={() => toggleRepo(repo)}
-              >
-                {expandedRepos[repo] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <span className="text-sm flex-1">{repo.split('/').pop()}</span>
-                <button
-                  onClick={(e) => handleDeleteClick(e, repo)}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
-                  title="Delete repository"
-                >
-                  <Trash2 size={14} className="text-red-600" />
-                </button>
-              </div>
-              
-              {expandedRepos[repo] && (
-                <div className="ml-6">
-                  <div 
-                    className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer text-sm ${
-                      selectedRepo === repo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'
-                    }`}
-                    onClick={() => selectRepo(repo)}
+
+          <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+            Showing {repos.length} of {allRepoCount} repositories
+            {searchTerm ? <span className="ml-1 text-slate-700">for "{searchTerm}"</span> : null}
+          </div>
+
+          <div className="space-y-2">
+            {repos.map(repo => {
+              const status = getRepoStatus(repo);
+              const StatusIcon = status.icon || CircleDashed;
+              const repoJobCount = ingestionJobs.filter(job => job.repo_name === repo).length;
+              return (
+                <div key={repo} className="rounded-xl border border-slate-200 bg-white p-2">
+                  <div
+                    className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-100"
+                    onClick={() => toggleRepo(repo)}
                   >
-                    <FileCode size={14} />
-                    <span>{repo.split('/').pop()}</span>
+                    {expandedRepos[repo] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <span className="flex-1 truncate text-sm font-medium text-slate-800">{repo.split('/').pop()}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusStyles[status.tone] || statusStyles.unknown}`}>
+                      <StatusIcon size={12} className={status.tone === 'ingesting' ? 'animate-spin' : ''} />
+                      {status.label}
+                    </span>
+                    <button
+                      onClick={(e) => handleDeleteClick(e, repo)}
+                      className="rounded p-1 text-red-600 opacity-0 transition group-hover:opacity-100 hover:bg-red-50"
+                      title="Delete repository"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
+
+                  {expandedRepos[repo] && (
+                    <div className="ml-3 mt-1">
+                      <div
+                        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
+                          selectedRepo === repo
+                            ? 'bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200'
+                            : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                        onClick={() => selectRepo(repo)}
+                      >
+                        <FileCode size={14} />
+                        <span className="truncate">{repo}</span>
+                      </div>
+                      {repoJobCount > 0 && (
+                        <button
+                          onClick={() => onOpenRepoJobs(repo)}
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+                        >
+                          <ListChecks size={12} />
+                          View jobs ({repoJobCount})
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
+              );
+            })}
+          </div>
+
+          {repos.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              {searchTerm ? 'No repositories match your search.' : 'No repositories yet. Ingest your first one.'}
             </div>
-          ))}
+          )}
 
-          {/* Ingestion Status Bar */}
-          <IngestionStatusBar
-            jobs={ingestionJobs}
-            batches={batches}
-            onRemoveJob={onRemoveJob}
-            onAbortJob={onAbortJob}
-            onDeleteJob={onDeleteJob}
-            onGetJobDetails={onGetJobDetails}
-          />
-
-          {/* Conversations Section */}
           {selectedRepo && (
             <ConversationList
               conversations={conversations}
@@ -124,43 +187,42 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Delete Repository</h3>
-              <button onClick={cancelDelete} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
+          <div className="surface-card w-full max-w-md rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900">Delete Repository</h3>
+              <button onClick={cancelDelete} className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
                 <X size={20} />
               </button>
             </div>
-            
-            <p className="text-sm text-gray-600 mb-4">
-              Are you sure you want to delete <strong>{repoToDelete}</strong>?
+
+            <p className="mb-4 text-sm text-slate-600">
+              Delete <strong>{repoToDelete}</strong> from the catalog?
             </p>
 
-            <label className="flex items-center gap-2 mb-6 cursor-pointer">
+            <label className="mb-6 flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={deleteFiles}
                 onChange={(e) => setDeleteFiles(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-2 focus:ring-cyan-300"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-slate-700">
                 Also delete files from disk
               </span>
             </label>
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={cancelDelete}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
               >
                 Delete
               </button>

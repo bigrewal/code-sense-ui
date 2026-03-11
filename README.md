@@ -8,7 +8,7 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 - 📁 **Repository Management** - Browse, ingest, and delete code repositories
 - 💬 **AI Chat** - Context-aware conversations about your codebase
-- 🔄 **Batch Ingestion** - Ingest single or multiple repositories simultaneously
+- 🔄 **Sequential Multi-Repo Ingestion** - Queue one or many repositories from the UI
 - 📊 **Job Monitoring** - Real-time tracking of ingestion pipeline stages
 - 🗂️ **Conversation History** - Persistent chat sessions per repository
 
@@ -43,8 +43,10 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 #### **Ingest Repositories**
 1. Click **+** next to "Repositories" in sidebar
-2. Enter repo name(s) - comma or newline separated for batch
-3. Monitor ingestion progress in "Ingestion Jobs" section
+2. Enter repo name(s) - comma or newline separated
+3. Choose ingestion options (`Enable precheck`, `Enable resolve refs`)
+4. Multiple repositories are queued sequentially (one backend `/ingest` call per repo)
+5. Monitor ingestion progress in "Ingestion Jobs" section
 
 #### **Chat with Repository**
 1. Select a repository from sidebar
@@ -53,16 +55,14 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 #### **Manage Jobs**
 - **View details**: Click on any job to see pipeline stages and metrics
-- **Abort**: Stop running jobs
-- **Delete**: Remove completed/failed/aborted jobs
+- **Delete**: Remove completed/failed/cancelled jobs
 
 
 ### **API Endpoints**
 
 - `GET /repos` - List repositories
-- `POST /ingest` - Start ingestion job(s)
+- `POST /ingest` - Start a single repository ingestion job
 - `GET /status` - Job status & listing
-- `POST /jobs/{job_id}/abort` - Abort running job
 - `DELETE /jobs/{job_id}` - Delete job
 - `POST /conversations` - Create chat session
 - `POST /chat` - Send message (streaming)
@@ -79,5 +79,5 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 ### **Notes**
 
 - Repositories must exist in `data/` directory on backend
-- Job statuses: `queued`, `running`, `completed`, `failed`, `aborted`
-- Batch jobs are grouped visually with progress indicators
+- Job statuses: `queued`, `running`, `completed`, `failed`, `cancelled`
+- Multiple repositories entered in the ingest modal are queued sequentially by the frontend
