@@ -35,16 +35,37 @@ export default function App() {
   const [repoSearchTerm, setRepoSearchTerm] = useState('');
   const [jobsModalRepo, setJobsModalRepo] = useState(null);
 
+  const catalogRepos = useMemo(() => {
+    const seen = new Set();
+    const orderedRepos = [];
+
+    repos.forEach((repo) => {
+      if (!seen.has(repo)) {
+        seen.add(repo);
+        orderedRepos.push(repo);
+      }
+    });
+
+    ingestionJobs.forEach((job) => {
+      if (job.repo_name && !seen.has(job.repo_name)) {
+        seen.add(job.repo_name);
+        orderedRepos.push(job.repo_name);
+      }
+    });
+
+    return orderedRepos;
+  }, [repos, ingestionJobs]);
+
   const filteredRepos = useMemo(() => {
-    if (!repoSearchTerm.trim()) return repos;
+    if (!repoSearchTerm.trim()) return catalogRepos;
     const query = repoSearchTerm.trim().toLowerCase();
-    return repos.filter((repo) => repo.toLowerCase().includes(query));
-  }, [repoSearchTerm, repos]);
+    return catalogRepos.filter((repo) => repo.toLowerCase().includes(query));
+  }, [repoSearchTerm, catalogRepos]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden px-2 py-2 sm:px-4 sm:py-4">
       <TopBar
-        repoCount={repos.length}
+        repoCount={catalogRepos.length}
         activeRepo={selectedRepo}
         searchTerm={repoSearchTerm}
         onSearchChange={setRepoSearchTerm}
@@ -53,7 +74,8 @@ export default function App() {
       <div className="mt-3 flex flex-1 overflow-hidden gap-3">
         <Sidebar
           repos={filteredRepos}
-          allRepoCount={repos.length}
+          allRepoCount={catalogRepos.length}
+          availableRepos={repos}
           searchTerm={repoSearchTerm}
           selectedRepo={selectedRepo}
           expandedRepos={expandedRepos}

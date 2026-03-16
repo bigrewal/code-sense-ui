@@ -18,6 +18,7 @@ import ConversationList from './ConversationList';
 export default function Sidebar({
   repos,
   allRepoCount,
+  availableRepos,
   searchTerm,
   selectedRepo,
   expandedRepos,
@@ -36,6 +37,7 @@ export default function Sidebar({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [repoToDelete, setRepoToDelete] = useState(null);
   const [deleteFiles, setDeleteFiles] = useState(false);
+  const availableRepoSet = new Set(availableRepos);
 
   const handleDeleteClick = (e, repo) => {
     e.stopPropagation();
@@ -119,6 +121,7 @@ export default function Sidebar({
               const status = getRepoStatus(repo);
               const StatusIcon = status.icon || CircleDashed;
               const repoJobCount = ingestionJobs.filter(job => job.repo_name === repo).length;
+              const isAvailable = availableRepoSet.has(repo);
               return (
                 <div key={repo} className="rounded-xl border border-slate-200 bg-white p-2">
                   <div
@@ -133,6 +136,7 @@ export default function Sidebar({
                     </span>
                     <button
                       onClick={(e) => handleDeleteClick(e, repo)}
+                      disabled={!isAvailable}
                       className="rounded p-1 text-red-600 opacity-0 transition group-hover:opacity-100 hover:bg-red-50"
                       title="Delete repository"
                     >
@@ -144,15 +148,26 @@ export default function Sidebar({
                     <div className="ml-3 mt-1">
                       <div
                         className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
-                          selectedRepo === repo
+                          selectedRepo === repo && isAvailable
                             ? 'bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            : isAvailable
+                              ? 'text-slate-600 hover:bg-slate-100'
+                              : 'cursor-not-allowed text-slate-400'
                         }`}
-                        onClick={() => selectRepo(repo)}
+                        onClick={() => {
+                          if (isAvailable) {
+                            selectRepo(repo);
+                          }
+                        }}
                       >
                         <FileCode size={14} />
                         <span className="truncate">{repo}</span>
                       </div>
+                      {!isAvailable && (
+                        <p className="mt-1 px-2 text-xs text-slate-400">
+                          Available for chat after ingestion completes.
+                        </p>
+                      )}
                       {repoJobCount > 0 && (
                         <button
                           onClick={() => onOpenRepoJobs(repo)}

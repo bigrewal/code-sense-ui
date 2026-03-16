@@ -212,6 +212,25 @@ export function useRepoChat() {
       await Api.deleteRepo(repoName, deleteFiles);
 
       setRepos(prev => prev.filter(r => r !== repoName));
+      setIngestionJobs(prev => {
+        const remainingJobs = [];
+
+        prev.forEach((job) => {
+          if (job.repo_name === repoName) {
+            clearPollingForJob(job.jobId);
+            return;
+          }
+          remainingJobs.push(job);
+        });
+
+        return remainingJobs;
+      });
+      setExpandedRepos(prev => {
+        if (!(repoName in prev)) return prev;
+        const next = { ...prev };
+        delete next[repoName];
+        return next;
+      });
 
       if (selectedRepo === repoName) {
         setSelectedRepo(null);

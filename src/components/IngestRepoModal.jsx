@@ -72,7 +72,6 @@ export default function IngestRepoModal({ isOpen, onClose, onIngest, onIngestBat
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Ingest Repository</h3>
-            <p className="text-sm text-slate-500">Queue one or more repositories for indexing.</p>
           </div>
           <button
             onClick={onClose}
@@ -86,7 +85,7 @@ export default function IngestRepoModal({ isOpen, onClose, onIngest, onIngestBat
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="repoInput" className="mb-2 block text-sm font-semibold text-slate-700">
-              Repository Name(s)
+              Repository Name
             </label>
             <div className="relative">
               <GitBranch size={16} className="pointer-events-none absolute left-3 top-3 text-slate-400" />
