@@ -66,7 +66,6 @@ export default function App() {
     <div className="h-screen flex flex-col overflow-hidden px-2 py-2 sm:px-4 sm:py-4">
       <TopBar
         repoCount={catalogRepos.length}
-        activeRepo={selectedRepo}
         searchTerm={repoSearchTerm}
         onSearchChange={setRepoSearchTerm}
       />

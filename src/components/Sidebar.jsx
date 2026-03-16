@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ChevronRight,
   ChevronDown,
-  FileCode,
   Folder,
   Trash2,
   X,
@@ -59,6 +58,17 @@ export default function Sidebar({
     setDeleteModalOpen(false);
     setRepoToDelete(null);
     setDeleteFiles(false);
+  };
+
+  const handleRepoSelect = (repo) => {
+    if (!availableRepoSet.has(repo)) {
+      return;
+    }
+
+    selectRepo(repo);
+    if (!expandedRepos[repo]) {
+      toggleRepo(repo);
+    }
   };
 
   const getRepoStatus = (repo) => {
@@ -125,11 +135,29 @@ export default function Sidebar({
               return (
                 <div key={repo} className="rounded-xl border border-slate-200 bg-white p-2">
                   <div
-                    className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-100"
-                    onClick={() => toggleRepo(repo)}
+                    className={`group flex items-center gap-2 rounded-lg px-2 py-2 transition ${
+                      selectedRepo === repo && isAvailable
+                        ? 'bg-cyan-50 ring-1 ring-cyan-200'
+                        : 'hover:bg-slate-100'
+                    }`}
                   >
-                    {expandedRepos[repo] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <span className="flex-1 truncate text-sm font-medium text-slate-800">{repo.split('/').pop()}</span>
+                    <button
+                      onClick={() => toggleRepo(repo)}
+                      className="rounded p-0.5 text-slate-500 transition hover:bg-slate-200"
+                      aria-label={expandedRepos[repo] ? 'Collapse repository' : 'Expand repository'}
+                    >
+                      {expandedRepos[repo] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                    <button
+                      onClick={() => handleRepoSelect(repo)}
+                      className={`flex min-w-0 flex-1 items-center gap-2 rounded-md text-left ${
+                        isAvailable ? 'cursor-pointer' : 'cursor-not-allowed'
+                      }`}
+                    >
+                      <span className={`truncate text-sm font-medium ${isAvailable ? 'text-slate-800' : 'text-slate-500'}`}>
+                        {repo.split('/').pop()}
+                      </span>
+                    </button>
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusStyles[status.tone] || statusStyles.unknown}`}>
                       <StatusIcon size={12} className={status.tone === 'ingesting' ? 'animate-spin' : ''} />
                       {status.label}
@@ -146,23 +174,6 @@ export default function Sidebar({
 
                   {expandedRepos[repo] && (
                     <div className="ml-3 mt-1">
-                      <div
-                        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
-                          selectedRepo === repo && isAvailable
-                            ? 'bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200'
-                            : isAvailable
-                              ? 'text-slate-600 hover:bg-slate-100'
-                              : 'cursor-not-allowed text-slate-400'
-                        }`}
-                        onClick={() => {
-                          if (isAvailable) {
-                            selectRepo(repo);
-                          }
-                        }}
-                      >
-                        <FileCode size={14} />
-                        <span className="truncate">{repo}</span>
-                      </div>
                       {!isAvailable && (
                         <p className="mt-1 px-2 text-xs text-slate-400">
                           Available for chat after ingestion completes.
