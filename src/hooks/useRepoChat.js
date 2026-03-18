@@ -1,22 +1,86 @@
 import { useState, useEffect, useRef } from 'react';
 import { Api } from '../api/Api';
 
+const TERMINAL_JOB_STATUSES = new Set(['completed', 'failed', 'cancelled']);
+
+function normalizeJob(job) {
+  return {
+    jobId: job.job_id || job.jobId,
+    job_id: job.job_id || job.jobId,
+    repo_name: job.repo_name,
+    status: job.status,
+    current_stage: job.current_stage,
+    error: job.error || null,
+    created_at: job.created_at,
+    updated_at: job.updated_at,
+    stages: job.stages || {},
+    isLocalOnly: job.isLocalOnly || false,
+  };
+}
+
 export function useRepoChat() {
   const [repos, setRepos] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [expandedRepos, setExpandedRepos] = useState({});
-  
+
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
-  
+
   const [ingestModalOpen, setIngestModalOpen] = useState(false);
-  const [ingestionJobs, setIngestionJobs] = useState([]); // Track individual jobs
-  const [batches, setBatches] = useState({}); // Track batches by batch_id
-  
+  const [ingestionJobs, setIngestionJobs] = useState([]);
+
   const contentRef = useRef(null);
-  const pollingIntervals = useRef({}); // Store polling intervals per job_id
+  const pollingIntervals = useRef({});
+
+  const clearPollingForJob = (jobId) => {
+    if (pollingIntervals.current[jobId]) {
+      clearInterval(pollingIntervals.current[jobId]);
+      delete pollingIntervals.current[jobId];
+    }
+  };
+
+  const pollJobStatus = async (jobId) => {
+    try {
+      const status = await Api.getJobStatus(jobId);
+      const normalized = normalizeJob(status);
+
+      setIngestionJobs(prev => {
+        const existing = prev.find(j => j.jobId === jobId);
+        if (existing) {
+          return prev.map(j => (j.jobId === jobId ? { ...j, ...normalized } : j));
+        }
+        return [...prev, normalized];
+      });
+
+      if (TERMINAL_JOB_STATUSES.has(normalized.status)) {
+        clearPollingForJob(jobId);
+
+        if (normalized.status === 'completed') {
+          Api.fetchRepos()
+            .then(setRepos)
+            .catch(err => console.error('Failed to refresh repos:', err));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to poll job status:', err);
+      if (err.status === 404) {
+        clearPollingForJob(jobId);
+      }
+    }
+  };
+
+  const startPollingJob = (jobId) => {
+    if (pollingIntervals.current[jobId]) {
+      return;
+    }
+
+    pollJobStatus(jobId);
+    pollingIntervals.current[jobId] = setInterval(() => {
+      pollJobStatus(jobId);
+    }, 60000);
+  };
 
   useEffect(() => {
     Api.fetchRepos()
@@ -27,27 +91,18 @@ export function useRepoChat() {
   useEffect(() => {
     Api.listJobs({ limit: 100 })
       .then(response => {
-        if (response.jobs && response.jobs.length > 0) {
-          const jobs = response.jobs.map(job => ({
-            jobId: job.job_id,
-            repo_name: job.repo_name,
-            status: job.status,
-            current_stage: job.current_stage,
-            error: job.error,
-            isBatch: !!job.batch_id,
-            batchId: job.batch_id,
-            batchIndex: job.batch_index
-          }));
-          
-          setIngestionJobs(jobs);
-          
-          // Start polling for any running/pending/queued jobs
-          jobs.forEach(job => {
-            if (['running', 'pending', 'queued'].includes(job.status)) {
-              startPollingJob(job.jobId);
-            }
-          });
+        if (!response.jobs || response.jobs.length === 0) {
+          return;
         }
+
+        const jobs = response.jobs.map(normalizeJob);
+        setIngestionJobs(jobs);
+
+        jobs.forEach(job => {
+          if (['running', 'pending', 'queued'].includes(job.status)) {
+            startPollingJob(job.jobId);
+          }
+        });
       })
       .catch(err => console.error('Failed to fetch existing jobs:', err));
   }, []);
@@ -72,7 +127,7 @@ export function useRepoChat() {
 
   const handleNewConversation = async () => {
     if (!selectedRepo) return;
-    
+
     try {
       const newConv = await Api.createConversation(selectedRepo);
       setConversations(prev => [newConv, ...prev]);
@@ -85,7 +140,7 @@ export function useRepoChat() {
 
   const handleSelectConversation = async (conversationId) => {
     setSelectedConversationId(conversationId);
-    
+
     try {
       const response = await Api.getConversationMessages(conversationId);
       setChatMessages(response.messages || []);
@@ -96,56 +151,42 @@ export function useRepoChat() {
 
   const handleSendMessage = async (message) => {
     if (!selectedConversationId) return;
-    
+
     const userMessage = {
       role: 'user',
       content: message,
       created_at: new Date().toISOString()
     };
     setChatMessages(prev => [...prev, userMessage]);
-    
-    const loadingMessage = {
-      role: 'assistant',
-      content: 'Gathering data...',
-      created_at: new Date().toISOString(),
-      isLoading: true
-    };
-    setChatMessages(prev => [...prev, loadingMessage]);
-    
+
     setIsChatStreaming(true);
     let assistantMessage = {
       role: 'assistant',
       content: '',
       created_at: new Date().toISOString()
     };
-    
-    let firstChunk = true;
-    
+
+    let hasStartedResponse = false;
+
     try {
       await Api.sendChatMessage(
         selectedConversationId,
         message,
         (content) => {
-          if (firstChunk) {
-            firstChunk = false;
-            setChatMessages(prev => prev.slice(0, -1));
-          }
-          
           assistantMessage.content = content;
           setChatMessages(prev => {
-            const withoutLast = prev.slice(0, -1);
             const last = prev[prev.length - 1];
-            if (last?.role === 'assistant' && !last?.isLoading) {
+            if (hasStartedResponse && last?.role === 'assistant') {
+              const withoutLast = prev.slice(0, -1);
               return [...withoutLast, assistantMessage];
-            } else {
-              return [...prev, assistantMessage];
             }
+            hasStartedResponse = true;
+            return [...prev, assistantMessage];
           });
         }
       );
     } catch (err) {
       console.error('Failed to send message:', err);
-      setChatMessages(prev => prev.filter(m => !m.isLoading));
     } finally {
       setIsChatStreaming(false);
     }
@@ -154,9 +195,9 @@ export function useRepoChat() {
   const handleDeleteConversation = async (conversationId) => {
     try {
       await Api.deleteConversation(conversationId);
-      
+
       setConversations(prev => prev.filter(c => c.conversation_id !== conversationId));
-      
+
       if (selectedConversationId === conversationId) {
         setSelectedConversationId(null);
         setChatMessages([]);
@@ -169,9 +210,28 @@ export function useRepoChat() {
   const handleDeleteRepo = async (repoName, deleteFiles) => {
     try {
       await Api.deleteRepo(repoName, deleteFiles);
-      
+
       setRepos(prev => prev.filter(r => r !== repoName));
-      
+      setIngestionJobs(prev => {
+        const remainingJobs = [];
+
+        prev.forEach((job) => {
+          if (job.repo_name === repoName) {
+            clearPollingForJob(job.jobId);
+            return;
+          }
+          remainingJobs.push(job);
+        });
+
+        return remainingJobs;
+      });
+      setExpandedRepos(prev => {
+        if (!(repoName in prev)) return prev;
+        const next = { ...prev };
+        delete next[repoName];
+        return next;
+      });
+
       if (selectedRepo === repoName) {
         setSelectedRepo(null);
         setConversations([]);
@@ -180,7 +240,7 @@ export function useRepoChat() {
       }
     } catch (err) {
       console.error('Failed to delete repo:', err);
-      alert('Failed to delete repository');
+      alert(err.message || 'Failed to delete repository');
     }
   };
 
@@ -192,133 +252,72 @@ export function useRepoChat() {
     setIngestModalOpen(false);
   };
 
-  // Poll individual job status
-  const pollJobStatus = async (jobId) => {
-    try {
-      const status = await Api.getJobStatus(jobId);
-      
-      setIngestionJobs(prev => {
-        const existing = prev.find(j => j.jobId === jobId);
-        if (existing) {
-          return prev.map(j => 
-            j.jobId === jobId 
-              ? { ...j, ...status, jobId }
-              : j
-          );
-        } else {
-          return [...prev, { ...status, jobId }];
-        }
-      });
-
-      // Stop polling if completed or failed
-      if (status.status === 'completed' || status.status === 'failed') {
-        if (pollingIntervals.current[jobId]) {
-          clearInterval(pollingIntervals.current[jobId]);
-          delete pollingIntervals.current[jobId];
-        }
-        
-        // Refresh repos list if completed
-        if (status.status === 'completed') {
-          Api.fetchRepos()
-            .then(setRepos)
-            .catch(err => console.error('Failed to refresh repos:', err));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to poll job status:', err);
+  const registerNewJob = (jobPayload) => {
+    const job = normalizeJob(jobPayload);
+    if (!job.jobId) {
+      throw new Error('Ingestion response missing job_id');
     }
-  };
 
-  // Start polling for a job
-  const startPollingJob = (jobId) => {
-    // Poll immediately
-    pollJobStatus(jobId);
-    
-    // Set up interval
-    pollingIntervals.current[jobId] = setInterval(() => {
-      pollJobStatus(jobId);
-    }, 60000); // 60 seconds
-  };
-
-  const handleIngestRepo = async (repoName) => {
-    try {
-      const result = await Api.ingestRepos([repoName]); // Pass as single-item array
-      
-      // Close modal immediately
-      setIngestModalOpen(false);
-      
-      // Check if single or batch response
-      if (result.batch_id && result.jobs) {
-        // Even single repo now returns batch format
-        const job = result.jobs[0];
-        
-        setIngestionJobs(prev => [...prev, {
-          jobId: job.job_id,
-          repo_name: job.repo_name,
-          status: job.status || 'queued',
-          current_stage: 'queued',
-          error: null,
-          isBatch: false
-        }]);
-        
-        startPollingJob(job.job_id);
+    setIngestionJobs(prev => {
+      const existing = prev.find(j => j.jobId === job.jobId);
+      if (existing) {
+        return prev.map(j => (j.jobId === job.jobId ? { ...j, ...job } : j));
       }
-      
+      return [...prev, job];
+    });
+
+    startPollingJob(job.jobId);
+  };
+
+  const handleIngestRepo = async (repoName, ingestOptions = {}) => {
+    try {
+      const result = await Api.ingestRepo(repoName, ingestOptions);
+      setIngestModalOpen(false);
+      registerNewJob(result);
     } catch (err) {
       console.error('Failed to ingest repo:', err);
       throw err;
     }
   };
 
-  const handleGetJobDetails = async (jobId) => {
+  const handleIngestRepos = async (repoNames, ingestOptions = {}) => {
     try {
-      return await Api.getJobStatus(jobId);
-    } catch (err) {
-      console.error('Failed to get job details:', err);
-      throw err;
-    }
-  };
+      const results = await Api.ingestRepos(repoNames, ingestOptions);
+      const successful = results.filter(result => result.ok);
+      const failed = results.filter(result => !result.ok);
 
-  // Handle batch ingestion
-  const handleIngestRepos = async (repoNames) => {
-    try {
-      const result = await Api.ingestRepos(repoNames);
-      
-      // Close modal immediately
-      setIngestModalOpen(false);
-      
-      // Batch response: {batch_id, jobs: [{job_id, repo_name, status, batch_index}]}
-      if (result.batch_id && result.jobs) {
-        // Store batch info
-        setBatches(prev => ({
-          ...prev,
-          [result.batch_id]: {
-            batchId: result.batch_id,
-            totalJobs: result.jobs.length,
-            jobs: result.jobs.map(j => j.job_id)
-          }
-        }));
-        
-        // Add all jobs to tracking
-        const newJobs = result.jobs.map(job => ({
-          jobId: job.job_id,
-          repo_name: job.repo_name,
-          status: job.status || 'queued',
-          current_stage: 'queued',
-          error: null,
-          isBatch: true,
-          batchId: result.batch_id,
-          batchIndex: job.batch_index
-        }));
-        
-        setIngestionJobs(prev => [...prev, ...newJobs]);
-        
-        // Start polling for all jobs in batch
-        result.jobs.forEach(job => {
-          startPollingJob(job.job_id);
-        });
+      if (successful.length === 0) {
+        const firstError = failed[0];
+        const error = new Error(firstError?.error || 'Failed to start ingestion');
+        error.status = firstError?.status || null;
+        throw error;
       }
-      
+
+      setIngestModalOpen(false);
+
+      const failedEntries = [];
+      let localFailureIndex = 0;
+
+      results.forEach((result) => {
+        if (result.ok) {
+          registerNewJob(result.data);
+          return;
+        }
+
+        localFailureIndex += 1;
+        failedEntries.push(normalizeJob({
+          job_id: `local-failure-${Date.now()}-${localFailureIndex}`,
+          repo_name: result.repo_name,
+          status: 'failed',
+          current_stage: 'queued',
+          error: result.error || 'Failed to start ingestion',
+          isLocalOnly: true,
+        }));
+      });
+
+      if (failedEntries.length > 0) {
+        setIngestionJobs(prev => [...prev, ...failedEntries]);
+      }
     } catch (err) {
       console.error('Failed to ingest repos:', err);
       throw err;
@@ -326,74 +325,25 @@ export function useRepoChat() {
   };
 
   const handleRemoveJob = (jobId) => {
-    const job = ingestionJobs.find(j => j.jobId === jobId);
-    
-    // If it's a batch job, remove entire batch
-    if (job?.isBatch && job?.batchId) {
-      const batchInfo = batches[job.batchId];
-      if (batchInfo) {
-        // Remove all jobs in this batch
-        setIngestionJobs(prev => prev.filter(j => j.batchId !== job.batchId));
-        
-        // Clear all polling intervals for this batch
-        batchInfo.jobs.forEach(jId => {
-          if (pollingIntervals.current[jId]) {
-            clearInterval(pollingIntervals.current[jId]);
-            delete pollingIntervals.current[jId];
-          }
-        });
-        
-        // Remove batch info
-        setBatches(prev => {
-          const updated = { ...prev };
-          delete updated[job.batchId];
-          return updated;
-        });
-      }
-    } else {
-      // Single job removal
-      setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
-      
-      if (pollingIntervals.current[jobId]) {
-        clearInterval(pollingIntervals.current[jobId]);
-        delete pollingIntervals.current[jobId];
-      }
-    }
-  };
-
-  const handleAbortJob = async (jobId) => {
-    try {
-      await Api.abortJob(jobId);
-      
-      // Update job status to "aborting"
-      setIngestionJobs(prev => prev.map(j => 
-        j.jobId === jobId 
-          ? { ...j, status: 'aborting' }
-          : j
-      ));
-    } catch (err) {
-      console.error('Failed to abort job:', err);
-      alert('Failed to abort job');
-    }
+    setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
+    clearPollingForJob(jobId);
   };
 
   const handleDeleteJob = async (jobId) => {
+    const job = ingestionJobs.find(j => j.jobId === jobId);
+    if (job?.isLocalOnly) {
+      handleRemoveJob(jobId);
+      return;
+    }
+
     try {
       await Api.deleteJob(jobId);
-      
-      // Remove job from list
-      setIngestionJobs(prev => prev.filter(j => j.jobId !== jobId));
-      
-      // Clear polling interval
-      if (pollingIntervals.current[jobId]) {
-        clearInterval(pollingIntervals.current[jobId]);
-        delete pollingIntervals.current[jobId];
-      }
+      handleRemoveJob(jobId);
     } catch (err) {
       console.error('Failed to delete job:', err);
       const errorMsg = err.message || 'Failed to delete job';
-      if (errorMsg.includes('running') || errorMsg.includes('Abort')) {
-        alert('Job is running. Please abort the job before deleting.');
+      if (errorMsg.toLowerCase().includes('running')) {
+        alert('Job is running. Retry delete after it finishes.');
       } else {
         alert(errorMsg);
       }
@@ -421,7 +371,6 @@ export function useRepoChat() {
     contentRef,
     ingestModalOpen,
     ingestionJobs,
-    batches,
     toggleRepo,
     selectRepo,
     handleNewConversation,
@@ -434,8 +383,6 @@ export function useRepoChat() {
     handleIngestRepo,
     handleIngestRepos,
     handleRemoveJob,
-    handleAbortJob,
     handleDeleteJob,
-    handleGetJobDetails,
   };
 }
