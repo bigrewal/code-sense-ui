@@ -3,6 +3,7 @@ import {
   ChevronRight,
   ChevronDown,
   Folder,
+  Search,
   Trash2,
   X,
   Plus,
@@ -19,6 +20,7 @@ export default function Sidebar({
   allRepoCount,
   availableRepos,
   searchTerm,
+  onSearchChange,
   selectedRepo,
   expandedRepos,
   toggleRepo,
@@ -107,23 +109,45 @@ export default function Sidebar({
     <>
       <div className="surface-card fade-in-up w-full max-w-[340px] overflow-y-auto rounded-3xl">
         <div className="p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <Folder size={16} />
-              <span>Repositories</span>
+          <div className="mb-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Folder size={16} />
+                <span>Repositories</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                  {allRepoCount} total
+                </span>
+                <button
+                  onClick={onOpenIngestModal}
+                  className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-100"
+                  title="Ingest repository"
+                >
+                  <Plus size={16} className="text-gray-600" />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={onOpenIngestModal}
-              className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-100"
-              title="Ingest repository"
-            >
-              <Plus size={16} className="text-gray-600" />
-            </button>
-          </div>
 
-          <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-            Showing {repos.length} of {allRepoCount} repositories
-            {searchTerm ? <span className="ml-1 text-slate-700">for "{searchTerm}"</span> : null}
+            <label className="relative block">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Search size={15} />
+              </div>
+              <input
+                type="text"
+                placeholder="Search repositories..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              />
+            </label>
+
+            {searchTerm ? (
+              <p className="mt-2 px-1 text-xs text-slate-500">
+                Showing {repos.length} match{repos.length === 1 ? '' : 'es'} for{' '}
+                <span className="font-medium text-slate-700">"{searchTerm}"</span>
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">

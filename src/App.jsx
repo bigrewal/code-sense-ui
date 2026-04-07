@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import ChatView from './components/ChatView';
 import IngestRepoModal from './components/IngestRepoModal';
@@ -64,18 +63,13 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden px-2 py-2 sm:px-4 sm:py-4">
-      <TopBar
-        repoCount={catalogRepos.length}
-        searchTerm={repoSearchTerm}
-        onSearchChange={setRepoSearchTerm}
-      />
-
-      <div className="mt-3 flex flex-1 overflow-hidden gap-3">
+      <div className="flex flex-1 overflow-hidden gap-3">
         <Sidebar
           repos={filteredRepos}
           allRepoCount={catalogRepos.length}
           availableRepos={repos}
           searchTerm={repoSearchTerm}
+          onSearchChange={setRepoSearchTerm}
           selectedRepo={selectedRepo}
           expandedRepos={expandedRepos}
           toggleRepo={toggleRepo}
