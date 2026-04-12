@@ -216,7 +216,7 @@ export function useRepoChat() {
     pollJobStatus(jobId);
     pollingIntervals.current[jobId] = setInterval(() => {
       pollJobStatus(jobId);
-    }, 60000);
+    }, 10000);
   };
 
   useEffect(() => {
