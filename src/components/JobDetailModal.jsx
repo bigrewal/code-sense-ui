@@ -49,7 +49,7 @@ export default function JobDetailModal({ job, isOpen, onClose }) {
   };
 
   const stages = job.stages || {};
-  const stageOrder = ['precheck', 'resolve_refs', 'mental_model'];
+  const stageOrder = ['precheck', 'mental_model'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">

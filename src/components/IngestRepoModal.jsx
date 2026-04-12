@@ -5,8 +5,6 @@ export default function IngestRepoModal({ isOpen, onClose, onIngest, onIngestBat
   const [repoInput, setRepoInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [enablePrecheck, setEnablePrecheck] = useState(true);
-  const [enableResolveRefs, setEnableResolveRefs] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,15 +37,9 @@ export default function IngestRepoModal({ isOpen, onClose, onIngest, onIngestBat
       }
 
       if (repos.length === 1) {
-        await onIngest(repos[0], {
-          enable_precheck: enablePrecheck,
-          enable_resolve_refs: enableResolveRefs,
-        });
+        await onIngest(repos[0]);
       } else {
-        await onIngestBatch(repos, {
-          enable_precheck: enablePrecheck,
-          enable_resolve_refs: enableResolveRefs,
-        });
+        await onIngestBatch(repos);
       }
 
       setRepoInput('');
@@ -113,29 +105,6 @@ export default function IngestRepoModal({ isOpen, onClose, onIngest, onIngestBat
             <p className="mt-1 text-xs text-slate-500">
               Separate multiple repos with commas or new lines. They will be queued one-at-a-time.
             </p>
-          </div>
-
-          <div className="mb-4 grid gap-2 rounded-xl border border-slate-200 bg-white p-3">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enablePrecheck}
-                onChange={(e) => setEnablePrecheck(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-2 focus:ring-cyan-300"
-                disabled={isSubmitting}
-              />
-              <span className="text-sm text-slate-700">Enable precheck</span>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enableResolveRefs}
-                onChange={(e) => setEnableResolveRefs(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-cyan-600 focus:ring-2 focus:ring-cyan-300"
-                disabled={isSubmitting}
-              />
-              <span className="text-sm text-slate-700">Enable resolve refs</span>
-            </label>
           </div>
 
           {error && (

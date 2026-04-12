@@ -62,7 +62,7 @@ export const Api = {
     return readJson(response);
   },
 
-  async sendChatMessage(conversationId, message, onChunk) {
+  async sendChatMessage(conversationId, message, onEvent) {
     const response = await fetch(`${API_BASE}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -71,21 +71,61 @@ export const Api = {
         message: message
       })
     });
-    if (!response.ok || !response.body) {
+    if (!response.ok) {
       throw await buildApiError(response);
+    }
+    if (!response.body) {
+      throw new Error('Chat response did not include a stream body');
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let accumulated = '';
+    let buffer = '';
+    let streamError = null;
+
+    const handleLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const event = JSON.parse(trimmed);
+      onEvent?.(event);
+
+      if (event.type === 'content') {
+        accumulated += event.delta || '';
+      }
+
+      if (event.type === 'error') {
+        streamError = event;
+      }
+    };
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
-      accumulated += chunk;
-      onChunk(accumulated);
+      buffer += chunk;
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      lines.forEach(handleLine);
+    }
+
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      handleLine(buffer);
+    }
+
+    if (streamError) {
+      const error = new Error(streamError.message || 'Chat stream failed');
+      error.event = streamError;
+      throw error;
     }
 
     return accumulated;
@@ -115,21 +155,11 @@ export const Api = {
     return readJson(response);
   },
 
-  async ingestRepo(repoName, options = {}) {
-    const payload = {
-      repo_name: repoName,
-    };
-    if (typeof options.enable_precheck === 'boolean') {
-      payload.enable_precheck = options.enable_precheck;
-    }
-    if (typeof options.enable_resolve_refs === 'boolean') {
-      payload.enable_resolve_refs = options.enable_resolve_refs;
-    }
-
+  async ingestRepo(repoName) {
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ repo_name: repoName })
     });
     if (!response.ok) {
       throw await buildApiError(response);
@@ -137,14 +167,14 @@ export const Api = {
     return readJson(response);
   },
 
-  async ingestRepos(repoNames, options = {}) {
+  async ingestRepos(repoNames) {
     const repos = Array.isArray(repoNames) ? repoNames : [repoNames];
     const results = [];
 
     for (let i = 0; i < repos.length; i += 1) {
       const repoName = repos[i];
       try {
-        const data = await this.ingestRepo(repoName, options);
+        const data = await this.ingestRepo(repoName);
         results.push({
           repo_name: repoName,
           ok: true,
