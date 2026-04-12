@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { Bot, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Bot } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import ProgressTimelineMessage from './ProgressTimelineMessage';
 
 export default function ChatView({
   messages,
@@ -10,6 +11,54 @@ export default function ChatView({
   selectedRepo,
 }) {
   const messagesEndRef = useRef(null);
+  const displayItems = useMemo(() => {
+    const items = [];
+    let index = 0;
+
+    while (index < messages.length) {
+      const message = messages[index];
+
+      if (message.message_type === 'progress_event') {
+        const progressMessages = [];
+        const startIndex = index;
+
+        while (index < messages.length && messages[index].message_type === 'progress_event') {
+          progressMessages.push(messages[index]);
+          index += 1;
+        }
+
+        const assistantMessage =
+          index < messages.length &&
+          messages[index].message_type === 'chat_message' &&
+          messages[index].role === 'assistant'
+            ? messages[index]
+            : null;
+
+        items.push({
+          type: 'progress_group',
+          key: progressMessages[0]?.client_id || `progress-${progressMessages[0]?.created_at || startIndex}`,
+          messages: progressMessages,
+          message: assistantMessage,
+        });
+
+        if (assistantMessage) {
+          index += 1;
+        }
+
+        continue;
+      }
+
+      items.push({
+        type: 'chat_message',
+        key: message.client_id || `${message.created_at || 'message'}-${index}`,
+        message,
+      });
+
+      index += 1;
+    }
+
+    return items;
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,15 +90,13 @@ export default function ChatView({
           </div>
         ) : (
           <>
-            {messages.map((msg, idx) => (
-              <ChatMessage key={idx} message={msg} />
+            {displayItems.map((item) => (
+              item.type === 'progress_group' ? (
+                <ProgressTimelineMessage key={item.key} messages={item.messages} message={item.message} />
+              ) : (
+                <ChatMessage key={item.key} message={item.message} />
+              )
             ))}
-            {isStreaming && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
-                <Loader2 size={14} className="animate-spin" />
-                Finding out...
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </>
         )}
