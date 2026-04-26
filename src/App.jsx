@@ -25,7 +25,6 @@ export default function App() {
     handleDeleteRepo,
     handleOpenIngestModal,
     handleCloseIngestModal,
-    handleIngestRepos,
     handleIngestRepo,
     handleRemoveJob,
     handleDeleteJob,
@@ -110,7 +109,6 @@ export default function App() {
         isOpen={ingestModalOpen}
         onClose={handleCloseIngestModal}
         onIngest={handleIngestRepo}
-        onIngestBatch={handleIngestRepos}
       />
 
       <RepoJobsModal

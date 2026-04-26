@@ -20,6 +20,46 @@ async function buildApiError(response) {
   return error;
 }
 
+function normalizeOptionalString(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+}
+
+function buildIngestPayload(input) {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const repoPath = normalizeOptionalString(input.repo_path ?? input.repoPath);
+    const repoName = normalizeOptionalString(input.repo_name ?? input.repoName);
+    const payload = {};
+
+    if (repoPath) {
+      payload.repo_path = repoPath;
+    }
+
+    if (repoName) {
+      payload.repo_name = repoName;
+    }
+
+    return payload;
+  }
+
+  const repoName = normalizeOptionalString(input);
+  return repoName ? { repo_name: repoName } : {};
+}
+
+function getIngestRequestLabel(input) {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    return (
+      normalizeOptionalString(input.repo_name ?? input.repoName) ||
+      normalizeOptionalString(input.repo_path ?? input.repoPath) ||
+      'Unknown repository'
+    );
+  }
+
+  return normalizeOptionalString(input) || 'Unknown repository';
+}
+
 export const Api = {
   async fetchRepos() {
     const response = await fetch(`${API_BASE}/repos`);
@@ -155,11 +195,25 @@ export const Api = {
     return readJson(response);
   },
 
-  async ingestRepo(repoName) {
+  async browseLocalRepos(path = null) {
+    const params = new URLSearchParams();
+    if (path) {
+      params.append('path', path);
+    }
+
+    const query = params.toString();
+    const response = await fetch(`${API_BASE}/local/repos/browse${query ? `?${query}` : ''}`);
+    if (!response.ok) {
+      throw await buildApiError(response);
+    }
+    return readJson(response);
+  },
+
+  async ingestRepo(repoRequest) {
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_name: repoName })
+      body: JSON.stringify(buildIngestPayload(repoRequest))
     });
     if (!response.ok) {
       throw await buildApiError(response);
@@ -167,22 +221,23 @@ export const Api = {
     return readJson(response);
   },
 
-  async ingestRepos(repoNames) {
-    const repos = Array.isArray(repoNames) ? repoNames : [repoNames];
+  async ingestRepos(repoRequests) {
+    const repos = Array.isArray(repoRequests) ? repoRequests : [repoRequests];
     const results = [];
 
     for (let i = 0; i < repos.length; i += 1) {
-      const repoName = repos[i];
+      const repoRequest = repos[i];
+      const requestLabel = getIngestRequestLabel(repoRequest);
       try {
-        const data = await this.ingestRepo(repoName);
+        const data = await this.ingestRepo(repoRequest);
         results.push({
-          repo_name: repoName,
+          repo_name: data.repo_name || requestLabel,
           ok: true,
           data,
         });
       } catch (error) {
         results.push({
-          repo_name: repoName,
+          repo_name: requestLabel,
           ok: false,
           error: error.message || 'Failed to start ingestion',
           status: error.status || null,
@@ -190,7 +245,7 @@ export const Api = {
         if (error.status === 409) {
           for (let j = i + 1; j < repos.length; j += 1) {
             results.push({
-              repo_name: repos[j],
+              repo_name: getIngestRequestLabel(repos[j]),
               ok: false,
               error: error.message || 'An ingestion job is already in progress.',
               status: 409,

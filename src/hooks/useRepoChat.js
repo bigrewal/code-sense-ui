@@ -455,9 +455,9 @@ export function useRepoChat() {
     startPollingJob(job.jobId);
   };
 
-  const handleIngestRepo = async (repoName) => {
+  const handleIngestRepo = async (repoRequest) => {
     try {
-      const result = await Api.ingestRepo(repoName);
+      const result = await Api.ingestRepo(repoRequest);
       setIngestModalOpen(false);
       registerNewJob(result);
     } catch (err) {
@@ -466,9 +466,9 @@ export function useRepoChat() {
     }
   };
 
-  const handleIngestRepos = async (repoNames) => {
+  const handleIngestRepos = async (repoRequests) => {
     try {
-      const results = await Api.ingestRepos(repoNames);
+      const results = await Api.ingestRepos(repoRequests);
       const successful = results.filter(result => result.ok);
       const failed = results.filter(result => !result.ok);
 
