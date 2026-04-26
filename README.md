@@ -8,7 +8,7 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 - 📁 **Repository Management** - Browse, ingest, and delete code repositories
 - 💬 **AI Chat** - Context-aware conversations about your codebase
-- 🔄 **Sequential Multi-Repo Ingestion** - Queue one or many repositories from the UI
+- 🔄 **Repository Ingestion** - Queue local repository paths from the UI
 - 📊 **Job Monitoring** - Real-time tracking of ingestion pipeline stages
 - 🗂️ **Conversation History** - Persistent chat sessions per repository
 
@@ -43,9 +43,9 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 #### **Ingest Repositories**
 1. Click **+** next to "Repositories" in sidebar
-2. Enter repo name(s) - comma or newline separated
-3. Choose ingestion options (`Enable precheck`, `Enable resolve refs`)
-4. Multiple repositories are queued sequentially (one backend `/ingest` call per repo)
+2. Browse configured local roots and select a git repository folder
+3. Optionally enter a display key
+4. Click **Ingest Selected**
 5. Monitor ingestion progress in "Ingestion Jobs" section
 
 #### **Chat with Repository**
@@ -78,6 +78,7 @@ A React-based interface for managing code repository ingestion and AI-powered ch
 
 ### **Notes**
 
-- Repositories must exist in `data/` directory on backend
+- Local repository paths must be accessible to the backend API process
+- Folder browsing uses `GET /local/repos/browse` from the backend, so roots are controlled by the API
 - Job statuses: `queued`, `running`, `completed`, `failed`, `cancelled`
-- Multiple repositories entered in the ingest modal are queued sequentially by the frontend
+- The ingest modal starts one repository ingestion at a time
